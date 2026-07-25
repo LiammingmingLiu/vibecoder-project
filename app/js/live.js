@@ -331,6 +331,12 @@
       .then(function (r) { if (r.sent) { S.seen = Math.max(S.seen, r.sent.id); S.lm[S.pm[now.id]] = r.sent.id; save(); } })
       .catch(function (e) { if (String(e.message) !== "401") toast("没发出去，重试一下"); });
   };
+  if ($("cSend")) $("cSend").onclick = function () { send(); };
+  /* 保险丝：离线剧本的自动回复对服务端真人一律禁用（它只属于早期演示） */
+  try {
+    var origReply = reply;
+    reply = function (b, t, f) { if (b && b.uuid) return; return origReply(b, t, f); };
+  } catch (e) {}
   var origOpen = openChat;
   openChat = function (id) {
     var b = null;
@@ -439,6 +445,23 @@
       if (r.__status === 200) { ADAPTER.on = true; ADAPTER.online = r.online || 0; setCounter(r.online); }
     }).catch(function () {});
   }
+
+  /* 清洗旧 bug 产生的脏消息（undefined 气泡 / 离线演示系统行） */
+  (function scrub() {
+    var ch = false;
+    Object.keys(S.ss || {}).forEach(function (k) {
+      var sess = S.ss[k]; if (!sess || !sess.m) return;
+      var before = sess.m.length;
+      sess.m = sess.m.filter(function (m) {
+        if (!m) return false;
+        if (m.sys && /演示到此/.test(String(m.t))) return false;
+        return typeof m.t === "string" && m.t !== "undefined" && m.t.length > 0;
+      });
+      if (sess.m.length !== before) ch = true;
+      sess.k = 99;
+    });
+    if (ch) save();
+  })();
 
   /* ══════════ 启动 ══════════ */
   pollStats();
