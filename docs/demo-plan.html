@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>游戏搭子 Demo 开发计划 v1</title>
+</head>
+<body>
+<style>
+  :root {
+    --ink: #182226;
+    --ink-2: #46555c;
+    --ink-3: #7a8a91;
+    --ground: #fbfcfc;
+    --panel: #f1f5f6;
+    --line: #dde5e7;
+    --accent: #0c7489;
+    --accent-deep: #085263;
+    --warn: #b45309;
+    --warn-bg: #fdf6ec;
+    --ok: #2c7a4b;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.75;
+    margin: 0;
+    padding: 0 20px 96px;
+    font-size: 16px;
+  }
+  .sheet { max-width: 46.5rem; margin: 0 auto; }
+  header.doc { padding: 56px 0 28px; border-bottom: 2px solid var(--ink); }
+  .kicker {
+    font-size: 12px; letter-spacing: .32em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600; margin-bottom: 14px;
+  }
+  h1 {
+    font-family: "Songti SC", "Noto Serif SC", "SimSun", serif;
+    font-size: 40px; line-height: 1.25; margin: 0 0 10px; font-weight: 900;
+    text-wrap: balance;
+  }
+  .subtitle { color: var(--ink-2); font-size: 17px; margin: 0 0 20px; max-width: 38em; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--ink-3); }
+  .meta b { color: var(--ink-2); font-weight: 600; }
+
+  nav.toc {
+    margin: 30px 0 8px; padding: 20px 24px; background: var(--panel);
+    border-radius: 10px; font-size: 14.5px;
+  }
+  nav.toc ol { margin: 6px 0 0; padding-left: 1.4em; columns: 2; column-gap: 32px; }
+  nav.toc li { margin: 3px 0; break-inside: avoid; }
+  nav.toc a { color: var(--ink-2); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc .toc-title { font-weight: 700; font-size: 13px; letter-spacing: .12em; color: var(--ink-3); }
+
+  section { margin-top: 56px; }
+  h2 {
+    font-family: "Songti SC", "Noto Serif SC", "SimSun", serif;
+    font-size: 26px; font-weight: 900; margin: 0 0 6px;
+    padding-top: 18px; border-top: 1px solid var(--line);
+  }
+  h2 .no { color: var(--accent); font-family: var(--mono); font-size: 17px; margin-right: 10px; }
+  h3 { font-size: 17.5px; margin: 30px 0 8px; font-weight: 700; }
+  h3 code { font-size: 15px; }
+  p { margin: 10px 0; }
+  .lede { color: var(--ink-2); margin: 4px 0 18px; }
+  ul, ol { padding-left: 1.5em; margin: 10px 0; }
+  li { margin: 4px 0; }
+  li::marker { color: var(--accent); }
+  strong { font-weight: 700; }
+  a { color: var(--accent); }
+
+  table {
+    border-collapse: collapse; width: 100%; font-size: 14.5px; margin: 14px 0;
+  }
+  .tablewrap { overflow-x: auto; margin: 14px 0; }
+  .tablewrap table { margin: 0; min-width: 560px; }
+  th {
+    text-align: left; font-size: 12.5px; letter-spacing: .06em; color: var(--ink-3);
+    border-bottom: 2px solid var(--ink); padding: 6px 12px 6px 0; font-weight: 700;
+    white-space: nowrap;
+  }
+  td { border-bottom: 1px solid var(--line); padding: 8px 12px 8px 0; vertical-align: top; }
+  td:last-child, th:last-child { padding-right: 0; }
+
+  code {
+    font-family: var(--mono); font-size: 13.5px; background: var(--panel);
+    padding: 1px 5px; border-radius: 4px;
+  }
+  pre {
+    background: #10191c; color: #d7e2e6; border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13px; line-height: 1.6;
+    margin: 14px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  pre .c { color: #6f8891; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--panel);
+    padding: 12px 18px; border-radius: 0 8px 8px 0; margin: 16px 0; font-size: 15px;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+  .callout .tag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .14em;
+    color: var(--accent-deep); margin-right: 6px;
+  }
+  .callout.warn .tag { color: var(--warn); }
+
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 9px;
+    border-radius: 99px; border: 1px solid var(--line); color: var(--ink-2);
+    background: #fff; margin-right: 6px; white-space: nowrap;
+  }
+  .pill.do { border-color: var(--ok); color: var(--ok); }
+  .pill.dont { border-color: var(--warn); color: var(--warn); }
+
+  .beats { list-style: none; padding: 0; margin: 14px 0; counter-reset: beat; }
+  .beats > li {
+    counter-increment: beat; display: grid; grid-template-columns: 44px 74px 1fr;
+    gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .beats > li::before {
+    content: counter(beat, decimal-leading-zero); font-family: var(--mono);
+    color: var(--accent); font-weight: 700; font-size: 14px;
+  }
+  .beats .t { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+  .beats b { display: block; }
+
+  .qa { margin: 18px 0; }
+  .qa .q {
+    font-weight: 700; margin: 22px 0 4px;
+  }
+  .qa .q .qno { color: var(--accent); font-family: var(--mono); margin-right: 8px; }
+  .qa .why { color: var(--ink-2); font-size: 15px; margin: 0; }
+  footer {
+    margin-top: 72px; padding-top: 18px; border-top: 2px solid var(--ink);
+    font-size: 13px; color: var(--ink-3);
+  }
+  @media (max-width: 640px) {
+    h1 { font-size: 30px; }
+    nav.toc ol { columns: 1; }
+    .beats > li { grid-template-columns: 36px 1fr; }
+    .beats .t { grid-column: 2; }
+    .beats div:last-child { grid-column: 1 / -1; }
+  }
+</style>
+
+<div class="sheet">
+
+<header class="doc">
+  <div class="kicker">VibeCoder Project · Build Spec</div>
+  <h1>「游戏搭子」现场交互 Demo<br>开发计划 v1</h1>
+  <p class="subtitle">自然语言找搭子 → 秒级匹配 → 站内开聊。一份可以直接喂给 AI 编码代理开工的完整规格，覆盖产品流程、架构、数据模型、API、LLM 调用与现场演示兜底。</p>
+  <div class="meta">
+    <span><b>日期</b> 2026-07-25</span>
+    <span><b>来源</b> 组内讨论（今坂·怀石烧肉，7/25 午）</span>
+    <span><b>仓库</b> github.com/LiammingmingLiu/vibecoder-project</span>
+    <span><b>时间盒</b> 今天下午 ≈ 5 小时</span>
+    <span><b>状态</b> 待团队确认 §13 开放问题</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <span class="toc-title">目录</span>
+  <ol>
+    <li><a href="#s1">一页概览</a></li>
+    <li><a href="#s2">会议决议提炼</a></li>
+    <li><a href="#s3">演示脚本（5 分钟）</a></li>
+    <li><a href="#s4">界面与交互规格</a></li>
+    <li><a href="#s5">技术架构</a></li>
+    <li><a href="#s6">数据模型</a></li>
+    <li><a href="#s7">API 设计</a></li>
+    <li><a href="#s8">LLM 调用设计</a></li>
+    <li><a href="#s9">种子数据（Bot 演员）</a></li>
+    <li><a href="#s10">里程碑与分工</a></li>
+    <li><a href="#s11">验收清单</a></li>
+    <li><a href="#s12">风险与兜底</a></li>
+    <li><a href="#s13">开放问题（待回答）</a></li>
+    <li><a href="#s14">给 AI 编码代理的指令</a></li>
+  </ol>
+</nav>
+
+<section id="s1">
+  <h2><span class="no">§1</span>一页概览</h2>
+  <p><strong>产品一句话</strong>：下班回家想打游戏没搭子？打开网页，用一句话说出你想玩什么、想找什么样的人，回车，30 秒内匹配到一个搭子，直接在站内聊起来、约起来 —— 「游戏版 Soul」。</p>
+  <p><strong>本次交付物</strong>：一个部署在 Vercel 上的可交互 Web Demo（暂定名「游戏搭子」，正式名见 §13-Q1），移动端优先，支持多台设备真实互相匹配和实时聊天，配 24 个 AI 扮演的种子用户兜底，保证现场演示任何情况下不冷场。</p>
+  <div class="tablewrap"><table>
+    <tr><th>维度</th><th>决定</th></tr>
+    <tr><td>形态</td><td>Web（手机浏览器打开即用，无需装 App、无需注册）</td></tr>
+    <tr><td>核心闭环</td><td>Onboarding 建画像（可跳过）→ 自然语言输入需求 → LLM 解析 + 匹配 → 结果卡片（含「为什么是 TA」）→ 站内 IM 开聊</td></tr>
+    <tr><td>技术栈</td><td>Next.js 15 + TypeScript + Tailwind · Vercel · Supabase（Postgres + Realtime）· Claude API</td></tr>
+    <tr><td>演示高潮</td><td>两台真机现场互配成功 + 匹配理由卡片瞬间点亮</td></tr>
+    <tr><td>不做</td><td>陪玩交易、支付、实名审查、真实游戏账号 OAuth（愿景页展示即可）</td></tr>
+  </table></div>
+</section>
+
+<section id="s2">
+  <h2><span class="no">§2</span>会议决议提炼</h2>
+  <p class="lede">以下是 7/25 讨论中已达成共识的点，编码时视为约束；未达成共识的见 §13。</p>
+  <h3>做什么</h3>
+  <ul>
+    <li><span class="pill do">共识</span><strong>自然语言是唯一的匹配入口</strong>。不做一堆筛选按钮，一个输入框像跟 Codex 对话一样，三类用户状态（①不知道玩什么 ②明确玩某游戏 ③明确游戏且对人有要求）全部用一句话表达，交给模型解析。</li>
+    <li><span class="pill do">共识</span><strong>匹配成功后进入站内 IM</strong>。不依赖微信群、不依赖游戏内语音；想加什么好友让用户在聊天里自己交换。聊天记录持久保留（像微信，不阅后即焚），长期可沉淀为画像。</li>
+    <li><span class="pill do">共识</span><strong>Onboarding 是可选项（option）</strong>。想要精准匹配就多填（游戏、段位/KDA、位置、风格激进或保守、性别、声音、MBTI、星座），想随缘就跳过直接随机匹配。</li>
+    <li><span class="pill do">共识</span><strong>标签体系为画像服务</strong>。游戏玩家看不到脸，最关心的是：性别、声音、技术（数据面板）、玩什么游戏。游戏账号绑定（三角洲 / 瓦 / Steam 库）是正式版的杀手锏，Demo 阶段做成愿景展示。</li>
+    <li><span class="pill do">共识</span><strong>商业化走轻订阅</strong>：Pro 会员解锁性别筛选、声音筛选、仅匹配认证真人、每日次数上限提升。定价锚点 ~10 元/月。Demo 里做一个假的 Pro 弹窗讲故事即可（可选，见 §10-M5）。</li>
+  </ul>
+  <h3>明确不做</h3>
+  <ul>
+    <li><span class="pill dont">排除</span>陪玩平台 / 交易撮合——售后、审查、责任界定问题太多，一旦碰就是另一个故事。</li>
+    <li><span class="pill dont">排除</span>本期任何真实收费、支付通道。</li>
+    <li><span class="pill dont">排除</span>Demo 阶段的真实游戏 API / Steam OAuth（三角洲无公开 API；Steam Web API 国内访问不稳，现场演这个是给自己挖坑，见 §12）。</li>
+    <li><span class="pill dont">排除</span>语音上传/录音（正式版再说；Demo 用「声音标签」代替：低音炮 / 御姐音 / 少年音 / 奶音…）。</li>
+  </ul>
+</section>
+
+<section id="s3">
+  <h2><span class="no">§3</span>演示脚本（5 分钟 Storyboard）</h2>
+  <p class="lede">Demo 是为「演」而生的，先定演法再写代码 —— 每个 beat 对应的功能就是开发的优先级。</p>
+  <ol class="beats">
+    <li><span class="t">0:00–0:30</span><div><b>痛点开场（口播）</b>「晚上十点，你想打两把三角洲，固定搭子今晚有事。你会去小红书搜群、加群、爬楼、加微信……还是打开它？」投屏主界面。</div></li>
+    <li><span class="t">0:30–1:30</span><div><b>Onboarding（真机 A，投屏）</b>队友 A 手机现场输入昵称，快速点选：三角洲 · 突击位 · 打法激进 · 晚间在线 · 低音炮。强调「全部可跳过」。</div></li>
+    <li><span class="t">1:30–2:30</span><div><b>自然语言匹配（真机 B，投屏）</b>主讲手机输入：「想找个女生一起玩三角洲，我打突击她打支援，最好声音好听点，现在就能上号」。点「开始匹配」→ 屏幕流式显示解析出的标签（游戏=三角洲、性别=女、位置互补、时段=现在）。</div></li>
+    <li><span class="t">2:30–3:00</span><div><b>Aha 时刻：匹配卡片</b>翻牌动画弹出对方卡片，重点念出「为什么是 TA」：<em>「你们都主玩三角洲，TA 常驻支援位和你互补，最近 7 天都在 22 点后活跃」</em>——这句话是全场记忆点。</div></li>
+    <li><span class="t">3:00–4:00</span><div><b>双端实时聊天</b>A、B 两台真机互发消息，投屏展示秒级到达；顺手展示一个 bot 搭子的聊天（证明冷启动期也永远有人陪）。</div></li>
+    <li><span class="t">4:00–4:30</span><div><b>愿景页</b>一屏讲三件事：游戏账号绑定（Steam 库 / KDA 自动成为标签）、认证真人、Pro 轻订阅 ~10 元/月。</div></li>
+    <li><span class="t">4:30–5:00</span><div><b>收尾 + 观众参与（可选）</b>放出二维码让观众进场匹配（是否开放见 §13-Q2）。</div></li>
+  </ol>
+  <div class="callout"><span class="tag">双保险</span>整场演示设计为「真人互配为主、Bot 兜底为辅」：任何一台真机掉链子，匹配池里 24 个 AI 扮演的用户保证 3 秒内必出结果、聊天必有回应（§9）。彩排模式开关见 §12。</div>
+</section>
+
+<section id="s4">
+  <h2><span class="no">§4</span>界面与交互规格</h2>
+  <p class="lede">共 3 个核心界面 + 1 个愿景页，移动端优先（375px 起），桌面居中卡片布局。深色游戏夜场风格，主色自定（避免紫色渐变烂大街配色）。全站中文。</p>
+
+  <h3>S1 · Onboarding <code>/onboarding</code></h3>
+  <ul>
+    <li>输入昵称（必填，2–12 字符）→ 生成本地会话（UUID 存 localStorage，无注册无密码）。</li>
+    <li>可选标签，全部为点选芯片（chip），零打字：<strong>常玩游戏</strong>（三角洲行动 / 无畏契约 / 英雄联盟 / 王者荣耀 / 原神 / CS2 / 永劫无间 / Steam 杂食，多选）、<strong>擅长位置/角色</strong>（按所选游戏动态出现）、<strong>打法风格</strong>（激进 / 稳健 / 娱乐）、<strong>性别</strong>（男 / 女 / 保密）、<strong>声音标签</strong>（低音炮 / 少年音 / 御姐音 / 甜妹音 / 不开麦）、<strong>常在线时段</strong>（下午 / 晚间 / 深夜 / 周末）、<strong>MBTI</strong>（可选）。</li>
+    <li>右上角「跳过」始终可见；完成或跳过后进入 S2。已有会话的用户直接进 S2（右上角头像可回来改资料）。</li>
+  </ul>
+
+  <h3>S2 · 主界面（匹配）<code>/</code></h3>
+  <ul>
+    <li>结构极简：一句 slogan + 一个多行输入框（placeholder 轮播三类示例文案，对应三类用户状态）+ 一个大按钮「开始匹配」。</li>
+    <li>点击后进入<strong>匹配动画态</strong>：流式展示两步 —— ①「理解你的需求…」逐条点亮解析出的标签芯片；②「正在为你翻牌…」雷达扫描动画。全程 ≤ 6 秒（含 LLM 延迟），超时走兜底（§12）。</li>
+    <li><strong>结果卡片</strong>：对方昵称、标签芯片（游戏/位置/风格/声音/时段）、在线状态点、以及重点样式的「为什么是 TA」两行理由。按钮：「开聊」→ S3；「换一个」→ 重新匹配（同一请求最多换 3 次，每次排除已出现的人）。</li>
+    <li>匹配不到完全符合的人时<strong>永不返回空态</strong>：降级为最接近的人选，理由里诚实说明（「没找到常玩三角洲的女生，TA 是最接近的：…」）。</li>
+    <li>底部一行小字入口：「未来：绑定 Steam / 游戏账号，战绩自动变标签 →」打开愿景页弹层。</li>
+  </ul>
+
+  <h3>S3 · 聊天 <code>/chat/[matchId]</code></h3>
+  <ul>
+    <li>顶部：对方昵称 + 标签摘要 + 「为什么匹配」可展开回看。消息气泡区 + 底部输入框，回车/按钮发送。</li>
+    <li>实时性：Supabase Realtime 订阅新消息；若 <code>NEXT_PUBLIC_POLL_MODE=1</code> 则降级为 1.5s 轮询（现场网络不稳时的开关，UI 无感知）。</li>
+    <li>对方为 bot 时自动回复（§8-C），带 1–3 秒拟人延迟和「对方正在输入…」指示。</li>
+    <li>快捷短语条：「上号？」「加个游戏好友」「开麦吗」—— 降低现场演示打字成本。</li>
+    <li>左侧（桌面）/入口（移动）显示「我的搭子」列表：历史 match 会话可重进（聊天记录持久，呼应 §2）。</li>
+  </ul>
+
+  <h3>S4 · 愿景弹层</h3>
+  <ul>
+    <li>三卡片：①账号绑定（Steam 库存 · 时长 · KDA 自动成为可信标签）②认证真人 & 安全（举报/拉黑）③Pro 订阅 ~10 元/月（性别/声音筛选 · 无限次匹配）。纯静态展示，按钮点击显示「Coming soon」。</li>
+  </ul>
+</section>
+
+<section id="s5">
+  <h2><span class="no">§5</span>技术架构</h2>
+  <pre><code>手机/电脑浏览器 (Next.js 前端, Vercel CDN)
+      │
+      ├── POST /api/match  (SSE 流式) ──► Vercel Serverless Function
+      │                                     ├─► Claude API ① 解析需求 → 结构化 JSON
+      │                                     ├─► Supabase SQL 预筛候选 (游戏交集/在线)
+      │                                     └─► Claude API ② Top-K 重排 + 生成匹配理由
+      ├── /api/profile · /api/messages ──► Vercel Serverless ──► Supabase Postgres
+      │
+      └── 聊天实时订阅 ◄────────────── Supabase Realtime (WebSocket, 托管)
+                                          ▲
+          bot 自动回复：POST /api/messages 时若对方 is_bot，
+          服务端调 Claude API ③ 生成人设回复后延迟写入 ────┘</code></pre>
+  <h3>选型理由（给编码代理的硬约束）</h3>
+  <ul>
+    <li><strong>Next.js 15（App Router）+ TypeScript + Tailwind，部署 Vercel</strong>：一个仓库前后端全包，git push 即部署，符合「后端用 Vercel」的决定。</li>
+    <li><strong>状态必须落 Supabase（Postgres），严禁内存存储</strong>。Vercel Serverless 每次调用可能是不同实例，进程内 <code>Map</code>/全局变量在本地 dev 能跑、上线必炸 —— 这是本项目最大的隐形坑，见 §14 约束 C1。</li>
+    <li><strong>聊天用 Supabase Realtime（Postgres CDC 订阅），不要自建 WebSocket</strong>：Vercel Serverless 不支持长连接 WebSocket 服务端。保留轮询降级开关。</li>
+    <li><strong>LLM 用 Anthropic 官方 TS SDK <code>@anthropic-ai/sdk</code></strong>，只在服务端调用（API Key 绝不进前端）。模型与参数规格见 §8。</li>
+    <li><strong>无鉴权体系</strong>：昵称 + localStorage UUID 即身份（demo 专用；正式版换 Supabase Auth）。</li>
+  </ul>
+  <div class="callout warn"><span class="tag">网络警告</span><code>*.vercel.app</code> 域名在国内直连不稳定。演示机与参与真机务必走热点/代理（§12-R3）；若要开放观众扫码，先在会场实测（§13-Q2）。</div>
+</section>
+
+<section id="s6">
+  <h2><span class="no">§6</span>数据模型</h2>
+  <p class="lede">Supabase SQL Editor 直接执行。Demo 用 anon key + 宽松 RLS（全表可读写）换开发速度，正式版必须收紧。</p>
+  <pre><code>create table profiles (
+  id uuid primary key default gen_random_uuid(),
+  nickname text not null,
+  gender text default 'secret',          <span class="c">-- male | female | secret</span>
+  voice_tag text,                        <span class="c">-- 低音炮/少年音/御姐音/甜妹音/不开麦</span>
+  games jsonb default '[]',              <span class="c">-- [{"name":"三角洲行动","roles":["突击"],"rank":"钻石"}]</span>
+  play_style text,                       <span class="c">-- 激进/稳健/娱乐</span>
+  active_hours text[] default '{}',      <span class="c">-- {下午,晚间,深夜,周末}</span>
+  mbti text,
+  intro text,                            <span class="c">-- bot 人设简介，真人可留空</span>
+  is_bot boolean default false,
+  last_seen_at timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+create table match_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid references profiles(id),
+  raw_text text not null,                <span class="c">-- 用户原话</span>
+  parsed jsonb,                          <span class="c">-- LLM 解析结果（§8-A 的 schema）</span>
+  excluded_ids uuid[] default '{}',      <span class="c">-- 「换一个」已排除的人</span>
+  created_at timestamptz default now()
+);
+
+create table matches (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid references match_requests(id),
+  user_a uuid references profiles(id),
+  user_b uuid references profiles(id),
+  reason text not null,                  <span class="c">-- 「为什么是 TA」</span>
+  score numeric,
+  created_at timestamptz default now()
+);
+
+create table messages (
+  id bigint generated always as identity primary key,
+  match_id uuid references matches(id),
+  sender_id uuid references profiles(id),
+  content text not null,
+  created_at timestamptz default now()
+);
+create index on messages (match_id, id);
+alter publication supabase_realtime add table messages;  <span class="c">-- 开启实时订阅</span></code></pre>
+</section>
+
+<section id="s7">
+  <h2><span class="no">§7</span>API 设计</h2>
+  <div class="tablewrap"><table>
+    <tr><th>路由</th><th>方法</th><th>说明</th></tr>
+    <tr><td><code>/api/profile</code></td><td>POST</td><td>创建/更新画像。入参 = profiles 字段子集；返回 <code>{ id }</code>，前端存 localStorage。</td></tr>
+    <tr><td><code>/api/match</code></td><td>POST</td><td><strong>SSE 流式</strong>。入参 <code>{ profileId, text, excludeIds? }</code>。事件序列：<code>parsing</code>（解析出的标签，逐个推）→ <code>searching</code> → <code>matched</code>（<code>{ matchId, partner, reason, score }</code>）→ <code>done</code>；错误发 <code>fallback</code> 事件（§12）。</td></tr>
+    <tr><td><code>/api/messages?matchId=</code></td><td>GET</td><td>拉取历史消息（轮询模式下带 <code>afterId</code> 增量拉取）。</td></tr>
+    <tr><td><code>/api/messages</code></td><td>POST</td><td><code>{ matchId, senderId, content }</code> 写库；若对端 <code>is_bot=true</code>，服务端异步生成 bot 回复（§8-C，延迟 1–3s 写入，勿阻塞本次响应）。</td></tr>
+    <tr><td><code>/api/matches?profileId=</code></td><td>GET</td><td>「我的搭子」列表（含最后一条消息预览）。</td></tr>
+  </table></div>
+  <h3>匹配管线（/api/match 内部）</h3>
+  <ol>
+    <li><strong>解析</strong>：Claude 调用 ①（§8-A）把 <code>text</code> 变成结构化条件，边流边推 <code>parsing</code> 事件。</li>
+    <li><strong>SQL 预筛</strong>：候选 = 非本人、未被排除的 profiles，按「游戏交集 &gt; 时段匹配 &gt; 最近活跃」粗排取 Top 12（真人优先于 bot：<code>order by is_bot asc, last_seen_at desc</code>）。</li>
+    <li><strong>LLM 重排</strong>：Claude 调用 ②（§8-B）从 12 人中选 1 + 写理由；写入 matches 表，推 <code>matched</code>。</li>
+    <li><strong>永不空手</strong>：候选为空时放宽条件重筛（去掉性别/声音要求 → 去掉游戏要求），理由中如实说明降级。</li>
+  </ol>
+</section>
+
+<section id="s8">
+  <h2><span class="no">§8</span>LLM 调用设计</h2>
+  <div class="tablewrap"><table>
+    <tr><th>调用</th><th>模型</th><th>要点</th></tr>
+    <tr><td>A · 需求解析</td><td><code>claude-opus-4-8</code></td><td>结构化输出（json_schema），流式，max_tokens 2048</td></tr>
+    <tr><td>B · 重排 + 理由</td><td><code>claude-opus-4-8</code></td><td>结构化输出，max_tokens 2048，理由 ≤ 60 字、口语化</td></tr>
+    <tr><td>C · Bot 人设回复</td><td><code>claude-haiku-4-5</code></td><td>低延迟低成本闲聊；max_tokens 300；回复 ≤ 40 字</td></tr>
+  </table></div>
+  <div class="callout"><span class="tag">参数红线</span>Opus 4.8 <strong>禁止传</strong> <code>temperature</code> / <code>top_p</code> / <code>top_k</code> / <code>budget_tokens</code>（会直接 400）；需要思考深度用 <code>thinking: {type:"adaptive"}</code>。结构化输出用 <code>output_config.format</code>（json_schema），不要用已废弃的顶层 <code>output_format</code>。API Key 只放服务端环境变量 <code>ANTHROPIC_API_KEY</code>。</div>
+  <h3>A · 需求解析 → JSON</h3>
+  <pre><code>import Anthropic from "@anthropic-ai/sdk";
+const client = new Anthropic(); <span class="c">// 读 ANTHROPIC_API_KEY</span>
+
+const PARSE_SCHEMA = {
+  type: "object",
+  properties: {
+    games:        { type: "array", items: { type: "string" } }, <span class="c">// 空数组=不限</span>
+    partner: { type: "object", properties: {
+      gender:     { type: "string", enum: ["male","female","any"] },
+      roles:      { type: "array", items: { type: "string" } },  <span class="c">// 期望对方位置</span>
+      voice:      { type: "string" },                            <span class="c">// ""=不限</span>
+      style:      { type: "string", enum: ["激进","稳健","娱乐",""] }
+    }, required: ["gender","roles","voice","style"], additionalProperties: false },
+    my_roles:     { type: "array", items: { type: "string" } },
+    time:         { type: "string", enum: ["now","tonight","weekend","any"] },
+    mode:         { type: "string", enum: ["specific","random"] } <span class="c">// random=随缘匹配</span>
+  },
+  required: ["games","partner","my_roles","time","mode"],
+  additionalProperties: false
+};
+
+const resp = await client.messages.create({
+  model: "claude-opus-4-8",
+  max_tokens: 2048,
+  system: "你是游戏搭子匹配平台的需求解析器。把用户的中文自然语言需求解析为结构化条件。用户没提到的维度一律用宽松默认值(any/空)，不要脑补。游戏名归一化到平台词表：三角洲行动、无畏契约、英雄联盟、王者荣耀、原神、CS2、永劫无间。",
+  output_config: { format: { type: "json_schema", schema: PARSE_SCHEMA } },
+  messages: [{ role: "user", content: text }],
+});</code></pre>
+  <h3>B · 重排 + 匹配理由</h3>
+  <ul>
+    <li>输入：解析结果 JSON + 候选 12 人的画像 JSON（含 id）。输出 schema：<code>{ chosen_id, score(0-100), reason }</code>。</li>
+    <li>System 要点：「优先硬条件（游戏、性别）→ 软条件（位置互补、时段重叠、风格）；reason 用第二人称、≤60 字、必须引用双方真实标签，禁止编造；条件被降级时 reason 首句如实说明」。</li>
+  </ul>
+  <h3>C · Bot 人设回复</h3>
+  <ul>
+    <li>System = 该 bot 的 <code>intro</code> 人设 + 通用规则：「你在搭子平台闲聊，中文口语、≤40 字、一次一句、偶尔用游戏黑话；目标是把话题引向约一局游戏；绝不暴露自己是 AI，除非被直接问（被直接问则大方承认是官方陪聊 AI 并引导继续匹配真人）」。</li>
+    <li>输入 = 最近 10 条对话。写库前 sleep 1–3 秒随机延迟，先推「正在输入」状态。</li>
+  </ul>
+</section>
+
+<section id="s9">
+  <h2><span class="no">§9</span>种子数据（Bot 演员）</h2>
+  <p class="lede">24 个 bot 画像写成 <code>supabase/seed.sql</code>。覆盖矩阵：8 款游戏 × 男女声线 × 三种风格 × 各时段，保证任何一句需求都能匹配到「像回事」的人。</p>
+  <p><strong>生成规则</strong>（编码代理用脚本或 LLM 批量生成后固化进 seed.sql，不要运行时现生成）：昵称要像真实玩家（例：「野区养猪户」「凌晨四点的枪声」「奶但不带脑子」），每人 intro 写 2–3 句人设（口头禅、上分目标、雷点），标签互相呼应。示例三条：</p>
+  <ul>
+    <li>「凌晨四点的枪声」· 男 · 低音炮 · 三角洲行动(突击/钻石) · 激进 · 深夜 · INTJ · intro：夜班下了才上号，只打排位，能开麦优先。</li>
+    <li>「奶但不带脑子」· 女 · 甜妹音 · 无畏契约(辅助/白金) · 娱乐 · 晚间 · ENFP · intro：技术下饭但气氛担当，输了不准骂人。</li>
+    <li>「Steam仓鼠」· 保密 · 不开麦 · Steam杂食(肉鸽/合作) · 稳健 · 周末 · intro：库里 400 个游戏玩过 40 个，找双人成行/雾锁王国搭子。</li>
+  </ul>
+  <p>另建 2 个「彩排真人」账号（队友 A / 主讲 B 的预设画像），彩排模式下固定互配（§12-R5）。</p>
+</section>
+
+<section id="s10">
+  <h2><span class="no">§10</span>里程碑与分工</h2>
+  <p class="lede">总时间盒 5 小时。M1–M3 可并行，人少就按序做，M4 雷打不动留最后一小时。</p>
+  <div class="tablewrap"><table>
+    <tr><th>里程碑</th><th>时长</th><th>内容</th><th>建议分工</th></tr>
+    <tr><td><b>M0</b> 环境</td><td>30m</td><td>Next.js 脚手架进仓库 develop 分支；建 Supabase 项目、跑 §6 DDL；Vercel 关联仓库、配环境变量；Claude API key 冒烟测试</td><td>1 人（其余人此时写 §9 人设 + §13 答案）</td></tr>
+    <tr><td><b>M1</b> 画像</td><td>60m</td><td>S1 Onboarding 全流程 + /api/profile + localStorage 会话 + seed.sql 灌库</td><td>前端手 ×1</td></tr>
+    <tr><td><b>M2</b> 匹配</td><td>90m</td><td>/api/match 三段管线（解析→预筛→重排）+ S2 界面（输入、流式标签、翻牌卡片、换一个）</td><td>主力 + AI 编码代理</td></tr>
+    <tr><td><b>M3</b> 聊天</td><td>90m</td><td>S3 界面 + Realtime 订阅 + 轮询降级 + bot 自动回复 + 我的搭子列表</td><td>第 2 人 + AI 编码代理</td></tr>
+    <tr><td><b>M4</b> 合练</td><td>60m</td><td>部署生产、真机联调、按 §3 脚本彩排 2 遍、录一版兜底屏录、愿景页 S4</td><td>全员</td></tr>
+    <tr><td><b>M5</b> 加分项</td><td>视余量</td><td>Pro 假弹窗、匹配音效、观众扫码入口、深色主题打磨</td><td>有余力再做</td></tr>
+  </table></div>
+</section>
+
+<section id="s11">
+  <h2><span class="no">§11</span>验收清单</h2>
+  <ul>
+    <li>□ 手机浏览器全流程走通：onboarding → 输入一句话 → 出卡片 → 聊天，全程无需说明书。</li>
+    <li>□ 两台不同设备（不同网络）可互相匹配并在 3 秒内互见消息。</li>
+    <li>□ 三类输入各测一句：「随便来个搭子」「想打瓦」「找个稳健的女生周末双排原神，最好甜妹音」—— 解析标签均正确，卡片理由引用了双方真实标签。</li>
+    <li>□ 匹配请求从点击到出卡片 ≤ 6 秒；超时自动走兜底且用户无感。</li>
+    <li>□ 「换一个」不会重复出人；候选耗尽时提示并复位。</li>
+    <li>□ 和 bot 聊 5 轮，回复符合人设、有拟人延迟、不穿帮。</li>
+    <li>□ 关掉 Realtime（开 POLL_MODE）聊天仍可用。</li>
+    <li>□ 断网重连后会话不丢（localStorage + 服务端数据都在）。</li>
+    <li>□ 彩排模式开关验证过：固定剧本可复现 §3 全部 beat。</li>
+    <li>□ 仓库 README 更新了本地启动 / 环境变量 / 部署说明。</li>
+  </ul>
+</section>
+
+<section id="s12">
+  <h2><span class="no">§12</span>风险与兜底</h2>
+  <div class="tablewrap"><table>
+    <tr><th>#</th><th>风险</th><th>对策</th></tr>
+    <tr><td>R1</td><td>会场 Wi-Fi 拉胯 / 被墙</td><td>演示全程用自带手机热点；演示机浏览器提前登好页面。</td></tr>
+    <tr><td>R2</td><td>Claude API 超时/抽风</td><td>/api/match 设 8s 总超时；超时回退到纯 SQL 规则匹配 + 模板理由（前端无感知，事件流里发 <code>fallback</code>）。</td></tr>
+    <tr><td>R3</td><td><code>*.vercel.app</code> 国内访问不稳</td><td>参与设备统一走热点/代理；同时本地 <code>localhost:3000</code> + 局域网 IP 跑一套完整备份（Supabase 云端不受影响），演示机可一键切换。</td></tr>
+    <tr><td>R4</td><td>现场没人在线，匹配池空</td><td>24 个 bot 永远「在线」，SQL 预筛保底永不为空。</td></tr>
+    <tr><td>R5</td><td>真机互配翻车（网络/手滑）</td><td><code>REHEARSAL_MODE=1</code>：两个彩排账号固定互配、理由固定、解析动画照常播 —— 纯剧本护航；再录一版完整屏录当最后底牌。</td></tr>
+    <tr><td>R6</td><td>观众恶意输入（脏话/越界内容）</td><td>解析 system 里加安全规则：不合适的需求返回 mode=random + 温和提示；bot 人设禁止跟进越界话题。</td></tr>
+    <tr><td>R7</td><td>公开仓库泄露密钥</td><td>所有 key 只进 Vercel 环境变量与 <code>.env.local</code>（已在 .gitignore）；seed 与代码不含任何真实密钥。</td></tr>
+  </table></div>
+</section>
+
+<section id="s13">
+  <h2><span class="no">§13</span>开放问题 —— 你们还没回答的事</h2>
+  <p class="lede">按苏格拉底的方式：我不给答案，只指出每个问题为什么绕不过去。<strong>Q1–Q4 影响今天的代码</strong>，最好开工前 10 分钟拍板；Q5–Q10 是演示问答与产品层面的「未知的未知」，答案写进讲稿。</p>
+  <div class="qa">
+    <p class="q"><span class="qno">Q1</span>它叫什么名字？</p>
+    <p class="why">「游戏搭子」是品类不是品牌。名字要出现在 slogan、匹配卡片、愿景页和你们的讲述里 —— 现在不定，今天下午每个界面都要留白。一个测试：观众散场后向朋友转述时，会说「我今天看到一个 ___」？</p>
+    <p class="q"><span class="qno">Q2</span>演示的「舞台」到底在哪里？观众是看客还是玩家？</p>
+    <p class="why">你们默认了「投屏 + 两台真机」，但没讨论：现场是什么网络？允许观众扫码进来吗？观众一进来，匹配池、内容安全、网络带宽全变成现场变量 —— 开放度每加一档，惊喜和翻车概率同时翻倍。这决定 R3/R6 要做多深。</p>
+    <p class="q"><span class="qno">Q3</span>匹配是「翻牌直连」还是「双向同意」？</p>
+    <p class="why">Soul 是匹配即进房，探探是双向 like 才通。你们讨论里默认了前者（对 demo 有利：无等待、无冷场），但这意味着任何人都能不经同意地「聊到」任何人 —— 演示时如果有观众问「女生会不会被骚扰到卸载」，你们的回答是什么？这个回答反过来定义正式版的匹配机制。</p>
+    <p class="q"><span class="qno">Q4</span>对面是 AI，要不要告诉用户？</p>
+    <p class="why">Bot 兜底是 demo 的保命符，也是伦理雷区：演示时如果把 bot 当真人展示而被观众识破，产品诚信全场归零。本计划的默认策略是「不主动声明、被问必承认」（§8-C），且演示词里主动把 bot 讲成「冷启动期官方陪聊」的产品特性 —— 你们接受这个策略吗？还是卡片上直接标「AI 搭子」？</p>
+    <p class="q"><span class="qno">Q5</span>Demo 的终点在哪里 —— 聊上了，然后呢？</p>
+    <p class="why">用户的真实目标不是聊天，是「今晚有人陪我打游戏」。你们的演示停在互发消息，离「开上黑」还差最后一公里（交换游戏 ID？一键组队口令？）。演示可以不做，但讲稿里要能回答「聊完之后呢」，否则整个闭环缺一个句号。</p>
+    <p class="q"><span class="qno">Q6</span>冷启动：上线第一周，真实用户打开 App 匹配到的是谁？</p>
+    <p class="why">Bot 能救 demo，救不了产品 —— 靠 AI 陪聊留住的用户不是来找 AI 的。双边市场先有鸡还是先有蛋：你们打算从哪个「单一游戏 × 单一城市/社群」切入密度？（会上反复提三角洲，是直觉还是决定？）</p>
+    <p class="q"><span class="qno">Q7</span>安全与信任：女性用户第一次被语音骚扰发生在第几天？</p>
+    <p class="why">语音社交 + 陌生人匹配 = 骚扰问题不是「会不会」而是「多快」。举报、拉黑、禁言、声音标签造假……这些不用今天做，但评委/投资人几乎必问。你们要有一页答案：先做哪三件事？</p>
+    <p class="q"><span class="qno">Q8</span>合规：实名认证、未成年人、个人信息，红线在哪？</p>
+    <p class="why">国内上线社交产品绕不过：网络实名（后台实名前台匿名）、未成年人防沉迷与社交限制、个保法下收集性别/声音/MBTI 的告知同意。愿景页写了「认证真人」，被追问认证方案时你们的口径是什么？</p>
+    <p class="q"><span class="qno">Q9</span>竞品一句话：比心、TT 语音、Soul、小红书搭子群都在，你们凭什么赢？</p>
+    <p class="why">你们真正的差异化假设是「自然语言 + LLM 理解式匹配 > 标签筛选式匹配」。这是 feature 还是护城河？如果比心明天也加一个输入框呢？想清楚这题，答案大概率落在「数据飞轮：聊天与战绩沉淀出别人拿不到的搭子画像」—— 但要你们自己说出来。</p>
+    <p class="q"><span class="qno">Q10</span>散场之后：这个 demo 的「成功」如何度量？</p>
+    <p class="why">是评委打分、拉到资源、还是决定要不要真做下去？答案决定今天下午的取舍 —— 如果是后者，与其打磨音效（M5），不如把 §13 的 Q6/Q9 想透，甚至现场收集观众「你愿意为它付 10 块/月吗」的举手数据。</p>
+  </div>
+</section>
+
+<section id="s14">
+  <h2><span class="no">§14</span>给 AI 编码代理的指令</h2>
+  <p class="lede">把本文件整体投喂给编码代理（Claude Code 等）时，以下为执行协议。</p>
+  <h3>执行顺序</h3>
+  <ol>
+    <li>按 §10 里程碑顺序开发；每个里程碑完成后运行 §11 对应验收项再继续。</li>
+    <li>界面规格以 §4 为准、数据结构以 §6 为准、接口契约以 §7 为准、LLM 参数以 §8 为准；冲突时以本文件为准并在 PR 描述中指出冲突。</li>
+    <li>git 流程：从 develop 切 <code>feat/*</code> 分支，commit 格式 <code>type(scope): 描述</code>，合回 develop；main 只走 PR。</li>
+  </ol>
+  <h3>硬约束</h3>
+  <ul>
+    <li><strong>C1</strong>：任何跨请求状态必须写 Supabase，禁止内存/全局变量存储（serverless 无共享内存）。</li>
+    <li><strong>C2</strong>：Anthropic API Key 只在服务端使用；前端代码与仓库中不得出现任何密钥；<code>.env.local</code> 不入库，维护 <code>.env.example</code>。</li>
+    <li><strong>C3</strong>：Opus 4.8 不传 temperature/top_p/top_k/budget_tokens；结构化输出用 <code>output_config.format</code>。</li>
+    <li><strong>C4</strong>：全部 UI 文案中文；移动端 375px 优先；匹配全链路 ≤ 6s、超时必须优雅降级（R2）。</li>
+    <li><strong>C5</strong>：不实现支付、陪玩交易、真实游戏 OAuth（愿景页静态展示除外）。</li>
+  </ul>
+  <h3>环境变量清单（<code>.env.example</code>）</h3>
+  <div class="tablewrap"><table>
+    <tr><th>变量</th><th>用途</th></tr>
+    <tr><td><code>ANTHROPIC_API_KEY</code></td><td>Claude API（仅服务端）</td></tr>
+    <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code> / <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td><td>Supabase 客户端（Realtime 订阅）</td></tr>
+    <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td>服务端写库（仅 API 路由）</td></tr>
+    <tr><td><code>REHEARSAL_MODE</code></td><td><code>1</code> = 彩排剧本模式（R5）</td></tr>
+    <tr><td><code>NEXT_PUBLIC_POLL_MODE</code></td><td><code>1</code> = 聊天降级为轮询（R3）</td></tr>
+  </table></div>
+  <h3>完成定义</h3>
+  <p>生产环境 URL 上，用两台手机按 §3 脚本完整走一遍不需要任何人工干预；§11 全部勾选；README 含 5 分钟内可复现的本地启动指引。</p>
+</section>
+
+<footer>
+  VibeCoder Project · 游戏搭子 Demo 计划 v1 · 2026-07-25 · 基于组内会议纪要生成 · 答完 §13 Q1–Q4 后更新为 v2
+</footer>
+
+</div>
+</body>
+</html>
