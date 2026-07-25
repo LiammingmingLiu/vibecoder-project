@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>游搭 · PRESS ANY KEY</title>
+<title>游搭 YooDa · PRESS ANY KEY</title>
 </head>
 <body>
 <style>
@@ -79,7 +79,7 @@
     color: var(--faint); letter-spacing: .08em;
   }
   #hud .brand { color: var(--grn); text-shadow: 0 0 8px rgba(0,255,156,.7); }
-  #hud .brand::before { content: "root@youda:~# "; color: var(--faint); text-shadow: none; }
+  #hud .brand::before { content: "root@yooda:~# "; color: var(--faint); text-shadow: none; }
   #hud .act { color: var(--dim); }
   #progress {
     position: fixed; top: 0; left: 0; height: 3px; width: 0%; z-index: 96;
@@ -356,7 +356,7 @@
 <div class="crt-vig"></div>
 <div id="progress"></div>
 <div id="hud">
-  <span class="brand">YOUDA.EXE</span>
+  <span class="brand">YOODA.EXE</span>
   <span class="act" id="actlabel">[BOOT]</span>
 </div>
 <div id="keyhint"><b>→/空格</b> 前进 · <b>←</b> 后退 · <b>B</b> 黑屏 · <b>F</b> 全屏</div>
@@ -443,10 +443,10 @@
 <!-- ═══ S5 玩法① ═══ -->
 <section class="slide" data-act="[ACT_III // HOWTO 1/3]">
   <div class="inner center">
-    <div class="eyebrow">youda match --input=自然语言 <span class="cmt"># STEP 1 · 说人话</span></div>
+    <div class="eyebrow">yooda match --input=自然语言 <span class="cmt"># STEP 1 · 说人话</span></div>
     <h1 class="mega" style="font-size:clamp(26px,3.6vw,50px)">不选标签，不填表格<br>像发微信一样说需求</h1>
     <div class="phone term">
-      <div class="tbar">youda.app — 找搭子</div>
+      <div class="tbar">yooda.app — 找搭子</div>
       <div class="tbody">
         <div class="inputbox"><span id="typed"></span><span class="caret"></span></div>
         <div class="chips chip-hidden" id="parsechips">
@@ -560,7 +560,7 @@
     <div class="eyebrow">join --guild=内测公会 <span class="cmt"># 招募中</span></div>
     <div class="qr-mini">JOIN_GUILD<br>入群二维码占位<br>pitch/qr-group.png</div>
     <div class="credits"><div id="creditroll">
-      <b>游搭 YOUDA</b> · DEMO BUILD 0.1<br>
+      <b>游搭 YooDa</b> · DEMO BUILD 0.1<br>
       ―― 制作组 ――<br>
       主策划 · ______<br>
       主程序 · ______<br>
@@ -638,7 +638,7 @@
 
   /* ── boot sequence (S0, 一次性) ── */
   var BOOTLINES = [
-    ['> YOUDA.SYS v0.1 BOOTING ..........', ' [ OK ]', 'ok'],
+    ['> YOODA.SYS v0.1 BOOTING ..........', ' [ OK ]', 'ok'],
     ['> MOUNT PLAYER_DB: 683,000,000 CN .', ' [ OK ]', 'ok'],
     ['> LINK DEEPSEEK CORE ..............', ' [ OK ]', 'ok'],
     ['> MATCHING ENGINE .................', ' [ARMED]', 'ok'],
