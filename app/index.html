@@ -279,6 +279,13 @@ h1 em{font-style:normal;background:linear-gradient(100deg,var(--pri),var(--pri2)
 </style>
 </head>
 <body>
+<script>/* live 预清洗：把上次会话里的服务端搭子暂存，待接线器恢复，防止原脚本 BOTS.find 崩溃 */
+(function(){["youda_web_v2","youda_v1"].forEach(function(k){try{
+var s=JSON.parse(localStorage.getItem(k)||"null");if(!s||!s.ss)return;var bak=s.ssBak||{};var ch=0;
+Object.keys(s.ss).forEach(function(id){if(String(id).slice(0,2)==="u_"){bak[id]=s.ss[id];delete s.ss[id];ch=1}});
+if(s.cur&&String(s.cur).slice(0,2)==="u_"){s.cur=null;ch=1}
+if(ch){s.ssBak=bak;localStorage.setItem(k,JSON.stringify(s))}}catch(e){}})})();</script>
+
 
 <div id="stream"></div>
 <div id="veil"></div>
@@ -1096,5 +1103,6 @@ document.querySelectorAll('textarea').forEach(t=>t.addEventListener('input',()=>
 renderList();
 if(S.me){$('nick').value=S.me.nick||'';$('intro').value=S.me.raw||'';show('v2')}
 </script>
+<script src="js/live.js"></script>
 </body>
 </html>

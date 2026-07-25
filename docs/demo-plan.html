@@ -190,7 +190,7 @@
     <tr><th>维度</th><th>决定</th></tr>
     <tr><td>形态</td><td>Web（手机浏览器打开即用，无需装 App、无需注册）</td></tr>
     <tr><td>核心闭环</td><td>自然语言自我介绍（可跳过）→ 自然语言说需求 → LLM 解析 → <strong>直接翻牌</strong>出卡片（含「为什么是 TA」）→ 站内 IM 开聊 → 引导转 KOOK / 游戏内语音</td></tr>
-    <tr><td>技术栈</td><td>Next.js 15 + TypeScript + Tailwind · GSAP（动效编排）· Vercel · Supabase（Postgres + Realtime）· DeepSeek API（deepseek-chat）</td></tr>
+    <tr><td>技术栈</td><td>Next.js 15 + TypeScript + Tailwind · GSAP（动效编排）· Vercel · Supabase（Postgres + Realtime）· DeepSeek API（deepseek-v4-flash）</td></tr>
     <tr><td>演示高潮</td><td>100 名观众扫码入场互相匹配 + 匹配理由卡片瞬间点亮</td></tr>
     <tr><td>切入人群</td><td>三角洲行动 + Steam 游戏玩家（词表、种子画像、文案全部向此倾斜）</td></tr>
     <tr><td>不做</td><td>陪玩交易、支付、实名/合规（demo 阶段搁置）、真实游戏账号 OAuth、自建语音模块（语音去 KOOK / 游戏内）</td></tr>
@@ -219,7 +219,7 @@
   <ul>
     <li><span class="pill do">拍板</span>产品名 <strong>「游搭」</strong>。</li>
     <li><span class="pill do">拍板</span>Onboarding 同样<strong>以自然语言为主</strong>：一句话介绍自己；标签芯片作为快速插入辅助，点选即拼进自然语言（§4-S1）。</li>
-    <li><span class="pill do">拍板</span>LLM 全面使用 <strong>DeepSeek API</strong>（<code>deepseek-chat</code>，国内直连稳、低成本，规格见 §8）。</li>
+    <li><span class="pill do">拍板</span>LLM 全面使用 <strong>DeepSeek API</strong>（<code>deepseek-v4-flash</code>，国内直连稳、低成本，规格见 §8）。</li>
     <li><span class="pill do">拍板</span>匹配机制 = <strong>直接翻牌</strong>，不做双向同意。</li>
     <li><span class="pill do">拍板</span>Bot 搭子<strong>不向用户声明是 AI</strong>。</li>
     <li><span class="pill do">拍板</span>闭环终点：聊上后引导去用户习惯的语音工具（<strong>KOOK / 游戏内语音</strong>），本阶段不做语音模块。</li>
@@ -393,9 +393,9 @@ alter publication supabase_realtime add table messages;  <span class="c">-- 开�
   <h2><span class="no">§8</span>LLM 调用设计</h2>
   <div class="tablewrap"><table>
     <tr><th>调用</th><th>模型</th><th>参数要点</th></tr>
-    <tr><td>A · 解析（匹配需求 / 自我介绍共用）</td><td><code>deepseek-chat</code></td><td>JSON 模式，temperature 0.2，max_tokens 1024</td></tr>
-    <tr><td>B · 重排 + 匹配理由</td><td><code>deepseek-chat</code></td><td>JSON 模式，temperature 0.5，理由 ≤ 60 字、口语化</td></tr>
-    <tr><td>C · Bot 人设回复</td><td><code>deepseek-chat</code></td><td>temperature 1.3（闲聊要有人味），max_tokens 200，回复 ≤ 40 字</td></tr>
+    <tr><td>A · 解析（匹配需求 / 自我介绍共用）</td><td><code>deepseek-v4-flash</code></td><td>JSON 模式，temperature 0.2，max_tokens 1024</td></tr>
+    <tr><td>B · 重排 + 匹配理由</td><td><code>deepseek-v4-flash</code></td><td>JSON 模式，temperature 0.5，理由 ≤ 60 字、口语化</td></tr>
+    <tr><td>C · Bot 人设回复</td><td><code>deepseek-v4-flash</code></td><td>temperature 1.3（闲聊要有人味），max_tokens 200，回复 ≤ 40 字</td></tr>
   </table></div>
   <div class="callout"><span class="tag">DeepSeek 要点</span>OpenAI 兼容协议：baseURL <code>https://api.deepseek.com</code>，直接用 <code>openai</code> npm SDK。JSON 模式 = <code>response_format: {"type":"json_object"}</code>，且 <strong>prompt 中必须出现「json」字样并附目标 schema 示例</strong>，否则可能报错或格式跑偏；返回后服务端一律过 zod 校验，失败自动重试一次，再失败走 §12-R2 规则兜底。流式加 <code>stream: true</code>。Key 见 §14 环境变量表。</div>
   <h3>A · 解析 → JSON（匹配需求与 S1 自我介绍复用同一管线）</h3>
@@ -406,7 +406,7 @@ const llm = new OpenAI({
 });
 
 const resp = await llm.chat.completions.create({
-  model: "deepseek-chat",
+  model: "deepseek-v4-flash",
   temperature: 0.2,
   max_tokens: 1024,
   response_format: { type: "json_object" },
