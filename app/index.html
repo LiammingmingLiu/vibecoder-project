@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>游搭 · 一句话找到今晚的搭子</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<style>
+:root{
+  --bg:#07080C; --bg2:#0D1017;
+  --sf:rgba(255,255,255,.05); --sf2:rgba(255,255,255,.085);
+  --line:rgba(255,255,255,.09); --line2:rgba(255,255,255,.17);
+  --pri:#FF6A2B; --pri2:#FF9B62; --acc:#35E0D0;
+  --txt:#EDEDF2; --dim:#8B8B9E; --dim2:#5A5A6E; --ok:#7BE07B;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--txt);
+  font:15px/1.7 -apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased}
+
+/* ═══════════ 背景：游戏画面板块无限流 ═══════════ */
+#stream{position:fixed;inset:-16% -24%;z-index:0;display:flex;flex-direction:column;
+  justify-content:center;gap:22px;
+  transform:perspective(1500px) rotateX(15deg) rotateZ(-6deg) scale(1.1);
+  transform-origin:center;transition:filter .8s}
+#stream.rush{filter:blur(3px)}
+.row{display:flex;gap:20px;width:max-content;will-change:transform}
+
+.gcard{width:250px;flex-shrink:0;border-radius:15px;overflow:hidden;position:relative;
+  border:1px solid rgba(255,255,255,.10);background:#0B0D13;cursor:default;
+  opacity:.62;box-shadow:0 18px 44px -18px rgba(0,0,0,.9);
+  transition:opacity .5s,transform .3s cubic-bezier(.2,.8,.3,1),border-color .3s,box-shadow .3s}
+#stream.rush .gcard{opacity:.34}
+#stream.dim .gcard{opacity:.15}
+.gcard.hot,#stream.rush .gcard.hot,#stream.dim .gcard.hot{
+  opacity:1;transform:scale(1.055) translateZ(0);border-color:rgba(255,255,255,.42);
+  box-shadow:0 28px 70px -18px rgba(0,0,0,.98),0 0 0 1px rgba(255,255,255,.09)}
+.gcard.hot .scanl{opacity:.24}
+.gart{position:relative;height:138px;overflow:hidden}
+.gart svg{display:block;width:100%;height:100%}
+.gart .greal{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:1}
+.sheen{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(104deg,transparent 34%,rgba(255,255,255,.16) 50%,transparent 66%);
+  transform:translateX(-110%);animation:sheen 6.5s ease-in-out infinite}
+@keyframes sheen{0%,72%{transform:translateX(-110%)}92%,100%{transform:translateX(110%)}}
+.scanl{position:absolute;inset:0;pointer-events:none;opacity:.5;z-index:3;transition:opacity .3s;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.34) 0 1px,transparent 1px 3px)}
+.sheen,.gfade,.gtop,.gname{z-index:4}
+.gtop{position:absolute;left:11px;top:10px;right:11px;display:flex;align-items:center;gap:7px}
+.gbadge{font-size:9px;font-weight:900;letter-spacing:.1em;padding:3px 7px;border-radius:5px;
+  backdrop-filter:blur(6px)}
+.glive{margin-left:auto;font-size:8.5px;letter-spacing:.1em;font-weight:800;color:#CFF7CF;
+  background:rgba(20,40,20,.6);border:1px solid rgba(123,224,123,.4);padding:2px 7px;border-radius:99px;
+  display:flex;align-items:center;gap:5px;backdrop-filter:blur(6px)}
+.glive b{width:4px;height:4px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok);
+  animation:pulse 2.2s ease-in-out infinite}
+.gfade{position:absolute;left:0;right:0;bottom:0;height:62px;
+  background:linear-gradient(to top,#0B0D13 6%,rgba(11,13,19,.75) 46%,transparent)}
+.gname{position:absolute;left:12px;bottom:9px;font-size:12.5px;font-weight:800;letter-spacing:-.01em;
+  text-shadow:0 2px 10px rgba(0,0,0,.9);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;max-width:224px}
+.ginfo{padding:9px 12px 11px;display:flex;gap:5px;flex-wrap:wrap}
+.ginfo i{font-style:normal;font-size:10px;color:var(--dim);padding:2px 7px;border-radius:5px;
+  background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.05)}
+
+#veil{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:
+   radial-gradient(closest-side at 50% 46%, rgba(7,8,12,.95) 40%, rgba(7,8,12,.66) 66%, rgba(7,8,12,.28) 100%),
+   linear-gradient(180deg, rgba(7,8,12,.92), transparent 20%, transparent 76%, rgba(7,8,12,.96)),
+   radial-gradient(58vw 48vh at 10% 3%, rgba(255,106,43,.16), transparent 60%),
+   radial-gradient(52vw 46vh at 93% 97%, rgba(53,224,208,.12), transparent 62%)}
+@keyframes pulse{50%{opacity:.3}}
+
+/* ═══════════ 悬停提示 ═══════════ */
+#tip{position:fixed;z-index:8;max-width:290px;pointer-events:none;opacity:0;
+  transform:translateY(8px);transition:opacity .22s,transform .22s;
+  background:rgba(13,15,22,.96);backdrop-filter:blur(18px);
+  border:1px solid var(--line2);border-radius:15px;padding:14px 16px;
+  box-shadow:0 26px 70px -20px rgba(0,0,0,.95)}
+#tip.on{opacity:1;transform:translateY(0)}
+#tip .tg{display:flex;align-items:center;gap:8px;font-size:14.5px;font-weight:800;letter-spacing:-.01em}
+#tip .tg span{font-size:9px;font-weight:900;letter-spacing:.1em;padding:2px 6px;border-radius:4px}
+#tip .td{font-size:12px;color:var(--dim);line-height:1.75;margin-top:8px}
+#tip .tp{font-size:11.5px;color:#C6C6D4;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+#tip .tk{font-size:10px;color:var(--dim2);margin-top:7px;letter-spacing:.04em}
+
+/* ═══════════ 通用 ═══════════ */
+main{position:relative;z-index:2;height:100%;display:flex;align-items:center;
+  justify-content:center;padding:40px 32px;pointer-events:none}
+main .panel,main .field,main .btn,main .ghost,main .chip,main h1,main .sub,main .eyebrow,
+main .hero-card,main .why,main .acts,main .deg,main .vis-link,main .steps,main .ph,main .intro,
+main .chips{pointer-events:auto}
+.view{display:none;width:100%;max-width:1080px}
+.view.on{display:block}
+.center{max-width:660px;margin:0 auto;text-align:center}
+h1{font-size:clamp(34px,4.4vw,54px);line-height:1.16;font-weight:800;letter-spacing:-.028em}
+h1 em{font-style:normal;background:linear-gradient(100deg,var(--pri),var(--pri2) 55%,var(--acc));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--dim);font-size:15.5px;margin-top:16px;line-height:1.8}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;letter-spacing:.16em;
+  color:var(--dim);text-transform:uppercase;font-weight:700;
+  padding:7px 15px;border-radius:99px;background:var(--sf);border:1px solid var(--line);margin-bottom:26px}
+.eyebrow b{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);
+  animation:pulse 2.2s ease-in-out infinite}
+
+.field{background:rgba(14,16,22,.85);backdrop-filter:blur(22px);
+  border:1px solid var(--line2);border-radius:20px;padding:20px 22px;
+  transition:border-color .3s,box-shadow .3s;text-align:left}
+.field:focus-within{border-color:rgba(255,106,43,.6);
+  box-shadow:0 0 0 5px rgba(255,106,43,.08),0 24px 70px -18px rgba(255,106,43,.35)}
+.field textarea,.field input{width:100%;background:none;border:0;outline:0;color:var(--txt);
+  font:inherit;font-size:16.5px;line-height:1.75;resize:none}
+.field textarea::placeholder,.field input::placeholder{color:var(--dim2)}
+
+.btn{border:0;border-radius:16px;padding:16px 30px;font:inherit;font-size:15.5px;font-weight:700;
+  cursor:pointer;background:var(--pri);color:#180709;
+  transition:transform .14s,box-shadow .3s;box-shadow:0 14px 40px -12px rgba(255,106,43,.7)}
+.btn:hover{box-shadow:0 18px 54px -12px rgba(255,106,43,.9)}
+.btn:active{transform:scale(.98)}
+.btn.sec{background:var(--sf);color:var(--txt);border:1px solid var(--line2);box-shadow:none;font-weight:600}
+.btn.sec:hover{background:var(--sf2)}
+.ghost{background:none;border:0;color:var(--dim);font:inherit;font-size:13px;cursor:pointer;padding:7px}
+.ghost:hover{color:var(--txt)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:12.5px;padding:7px 14px;border-radius:99px;background:var(--sf);
+  border:1px solid var(--line);color:var(--dim);cursor:pointer;white-space:nowrap;
+  transition:all .18s;font-family:inherit}
+.chip:hover{border-color:var(--line2);color:var(--txt);transform:translateY(-1px)}
+.chip.on{background:rgba(255,106,43,.15);border-color:rgba(255,106,43,.5);color:#FFBC98}
+.chip.acc{background:rgba(53,224,208,.12);border-color:rgba(53,224,208,.4);color:#8CEFE4}
+.chip.sm{font-size:11.5px;padding:5px 11px}
+.chip.plain{cursor:default}
+.chip.plain:hover{transform:none;border-color:var(--line);color:var(--dim)}
+
+#bar{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;
+  justify-content:space-between;padding:22px 34px}
+.brand{display:flex;align-items:center;gap:11px}
+.mark{width:34px;height:34px;border-radius:10px;background:var(--pri);color:#180709;
+  display:flex;align-items:center;justify-content:center;font-weight:900;font-size:17px;
+  overflow:hidden;position:relative}
+.mark img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  transform:scale(1.28)}   /* 盖住品牌图的深色底 */
+.brand b{font-size:17px;letter-spacing:.05em}
+.brand span{font-size:11.5px;color:var(--dim2);margin-left:6px;letter-spacing:.05em}
+#barR{display:flex;align-items:center;gap:8px}
+
+.panel{background:rgba(11,13,19,.9);backdrop-filter:blur(28px);border:1px solid var(--line);
+  border-radius:26px;padding:36px 38px;box-shadow:0 40px 120px -30px rgba(0,0,0,.9)}
+.lab{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);
+  font-weight:700;margin:24px 0 10px}
+.grp{margin-bottom:15px}
+.grp .gt{font-size:11px;color:var(--dim2);margin-bottom:8px}
+.two{display:grid;grid-template-columns:1.1fr .9fr;gap:34px;align-items:start}
+
+/* 匹配动画 */
+.steps{max-width:520px;margin:0 auto}
+.step{display:flex;gap:13px;align-items:flex-start;opacity:.25;transition:opacity .4s;margin-bottom:18px}
+.step.live,.step.done{opacity:1}
+.step .dot{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line2);flex-shrink:0;
+  margin-top:5px;display:flex;align-items:center;justify-content:center;font-size:10px;transition:all .3s}
+.step.done .dot{background:var(--pri);border-color:var(--pri);color:#180709}
+.step .tx{font-size:16px}
+.radar{width:250px;height:250px;margin:30px auto;position:relative}
+.radar i{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,106,43,.18)}
+.radar i:nth-child(2){inset:38px}.radar i:nth-child(3){inset:76px}.radar i:nth-child(4){inset:114px}
+.sweep{position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(255,106,43,.34) 48deg,transparent 60deg);
+  animation:spin 1.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.radar .blip{position:absolute;width:7px;height:7px;border-radius:50%;background:var(--pri);
+  box-shadow:0 0 14px var(--pri);opacity:0}
+
+/* 结果 */
+.res{display:grid;grid-template-columns:404px 1fr;gap:40px;align-items:center}
+.hero-card{border-radius:24px;transform-style:preserve-3d;overflow:hidden;
+  background:linear-gradient(165deg,rgba(255,255,255,.09),rgba(255,255,255,.03));
+  border:1px solid var(--line2);backdrop-filter:blur(20px);
+  box-shadow:0 44px 120px -30px rgba(0,0,0,.96)}
+#heroArt{position:relative;height:186px;overflow:hidden}
+#heroArt svg{display:block;width:100%;height:100%}
+#heroArt .gfade{height:96px;background:linear-gradient(to top,rgba(16,18,25,1) 4%,rgba(16,18,25,.6) 50%,transparent)}
+#heroArt .gtop{left:18px;top:16px;right:18px}
+.hero-in{padding:0 26px 26px;margin-top:-40px;position:relative}
+.av{border-radius:20px;display:flex;align-items:center;justify-content:center;
+  font-weight:900;color:#150606;flex-shrink:0}
+.ph{display:flex;align-items:flex-end;gap:16px;margin-bottom:18px}
+.ph .av{width:68px;height:68px;font-size:27px;border:3px solid #10121A}
+.pn{font-size:22px;font-weight:800;letter-spacing:-.015em}
+.pstat{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ok);margin-top:5px}
+.pstat b{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok);
+  animation:pulse 2.2s ease-in-out infinite}
+.intro{font-size:13px;color:var(--dim);line-height:1.85;margin-top:18px;padding-left:13px;
+  border-left:2px solid var(--line2);font-style:italic}
+.why .wt{font-size:11px;letter-spacing:.16em;color:var(--pri2);font-weight:800;margin-bottom:14px}
+.why p{font-size:19px;line-height:1.75;font-weight:500;letter-spacing:-.01em}
+.why p+p{margin-top:10px;color:#C9C9D8;font-size:17px;font-weight:400}
+.deg{background:rgba(255,196,90,.08);border:1px solid rgba(255,196,90,.26);color:#FFD08A;
+  border-radius:14px;padding:12px 16px;font-size:13px;margin-bottom:20px}
+.acts{display:flex;gap:12px;margin-top:32px;align-items:center}
+.vis-link{background:none;border:0;color:var(--dim2);font:inherit;font-size:12px;cursor:pointer;
+  padding:8px 0;margin-top:20px;display:block}
+.vis-link:hover{color:var(--acc)}
+
+/* 聊天 */
+#chatView{position:fixed;inset:0;z-index:20;display:none;
+  background:rgba(6,7,11,.88);backdrop-filter:blur(20px);padding:52px 34px}
+#chatView.on{display:flex;align-items:center;justify-content:center}
+.chatbox{width:100%;max-width:1080px;height:100%;max-height:760px;display:grid;
+  grid-template-columns:274px 1fr;background:rgba(11,13,19,.95);border:1px solid var(--line);
+  border-radius:24px;overflow:hidden;box-shadow:0 50px 140px -30px rgba(0,0,0,.96)}
+.side{border-right:1px solid var(--line);padding:22px 18px;overflow-y:auto}
+.side .st{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim2);
+  font-weight:700;margin-bottom:14px;padding-left:6px}
+.item{display:flex;align-items:center;gap:12px;padding:11px;border-radius:14px;cursor:pointer;
+  width:100%;text-align:left;background:none;border:1px solid transparent;color:inherit;
+  font:inherit;margin-bottom:5px;transition:background .18s}
+.item:hover{background:var(--sf)}
+.item.on{background:var(--sf2);border-color:var(--line)}
+.item .av{width:38px;height:38px;border-radius:12px;font-size:15px}
+.item .nm{font-size:13.5px;font-weight:700}
+.item .ls{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pane{display:flex;flex-direction:column;min-width:0}
+.chead{display:flex;align-items:center;gap:14px;padding:18px 24px;border-bottom:1px solid var(--line);
+  position:relative;overflow:hidden}
+.chead .cbg{position:absolute;inset:0;opacity:.25;pointer-events:none}
+.chead .cbg svg{width:100%;height:100%;display:block}
+.chead>*{position:relative;z-index:1}
+.chead .av{width:42px;height:42px;border-radius:13px;font-size:17px}
+.cbody{flex:1;overflow-y:auto;padding:24px 26px}
+.msg{display:flex;margin-bottom:13px}
+.msg.me{justify-content:flex-end}
+.bub{max-width:66%;padding:11px 16px;border-radius:18px;font-size:14.5px;line-height:1.7;
+  background:var(--sf2);border:1px solid var(--line)}
+.msg.me .bub{background:var(--pri);color:#180709;border-color:transparent;
+  border-bottom-right-radius:6px;font-weight:500}
+.msg.ta .bub{border-bottom-left-radius:6px}
+.sys{text-align:center;font-size:12px;color:var(--dim2);margin:18px 0}
+.typ{display:flex;gap:5px;padding:14px 17px}
+.typ i{width:5px;height:5px;border-radius:50%;background:var(--dim);animation:bl 1.2s infinite}
+.typ i:nth-child(2){animation-delay:.18s}.typ i:nth-child(3){animation-delay:.36s}
+@keyframes bl{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+.quick{display:flex;gap:8px;padding:12px 26px 0;flex-wrap:wrap}
+.cin{display:flex;gap:11px;align-items:flex-end;padding:14px 26px 22px}
+.cin .field{flex:1;padding:12px 17px;border-radius:16px}
+.cin .field textarea{font-size:14.5px}
+.send{width:48px;height:48px;border-radius:16px;border:0;background:var(--pri);color:#180709;
+  font-size:19px;font-weight:800;cursor:pointer;flex-shrink:0}
+.send:active{transform:scale(.94)}
+
+/* 愿景 */
+#mask{position:fixed;inset:0;z-index:40;background:rgba(5,6,10,.88);backdrop-filter:blur(18px);
+  display:none;align-items:center;justify-content:center;padding:34px}
+#mask.on{display:flex}
+#sheet{width:100%;max-width:940px}
+.vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px}
+.vcard{background:var(--sf);border:1px solid var(--line);border-radius:20px;padding:24px}
+.vcard h4{font-size:16.5px;font-weight:700;margin-bottom:9px}
+.vcard p{font-size:13px;color:var(--dim);line-height:1.8;margin-bottom:18px;min-height:88px}
+.soon{font-size:12px;padding:9px 16px;border-radius:10px;background:var(--sf);
+  border:1px solid var(--line);color:var(--dim);cursor:pointer;font-family:inherit}
+.soon:hover{color:var(--txt);border-color:var(--line2)}
+.tag{display:inline-block;font-size:10px;padding:3px 8px;border-radius:6px;
+  background:rgba(53,224,208,.13);color:var(--acc);font-weight:700;letter-spacing:.06em;margin-left:8px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:42px;z-index:90;
+  padding:12px 20px;border-radius:13px;font-size:13.5px;background:rgba(24,26,34,.96);
+  border:1px solid var(--line2);opacity:0;pointer-events:none;transition:opacity .3s}
+::-webkit-scrollbar{width:7px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px}
+
+@media(max-width:900px){
+  .res{grid-template-columns:1fr;gap:26px}.two{grid-template-columns:1fr;gap:24px}
+  .chatbox{grid-template-columns:1fr}.side{display:none}
+  .vgrid{grid-template-columns:1fr}.vcard p{min-height:0}
+  main{padding:88px 20px 32px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="stream"></div>
+<div id="veil"></div>
+<div id="tip"><div class="tg"><span id="tipAbbr"></span><b id="tipGame"></b></div>
+  <div class="td" id="tipDesc"></div><div class="tp" id="tipWho"></div>
+  <div class="tk">⏸ 悬停中 · 已暂停这一排</div></div>
+
+<div id="bar">
+  <div class="brand"><span class="mark">游<img src="assets/mark.png" alt="" onerror="this.remove()"></span><b>游搭</b><span>YOODA</span></div>
+  <div id="barR">
+    <button class="ghost" id="navMe">我的画像</button>
+    <button class="ghost" id="navList">我的搭子</button>
+  </div>
+</div>
+
+<main>
+
+<section class="view on" id="v1">
+  <div class="panel two" style="max-width:900px;margin:0 auto">
+    <div>
+      <div class="eyebrow"><b></b>第 1 步 · 可跳过</div>
+      <h1 style="font-size:36px">先说说<em>你自己</em></h1>
+      <p class="sub">不用填表。说人话就行，说完我帮你整理成标签——<br>别人也是靠这段话找到你的。</p>
+      <div class="field" style="margin:26px 0 12px;padding:14px 18px">
+        <input id="nick" maxlength="12" placeholder="起个昵称（2—12 字）" style="font-size:15px">
+      </div>
+      <div class="field" style="padding:16px 18px">
+        <textarea id="intro" rows="4" placeholder="用一句话介绍你自己：常玩什么、什么位置、什么风格、几点在线、声音怎么样…"></textarea>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:22px;align-items:center">
+        <button class="btn" id="toCard">生成我的画像</button>
+        <button class="ghost" id="skip">跳过，直接找搭子 →</button>
+      </div>
+    </div>
+    <div>
+      <div class="lab" style="margin-top:0">点一下，自动帮你写进去</div>
+      <div id="inserter" style="max-height:430px;overflow-y:auto;padding-right:6px"></div>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="v1b">
+  <div class="panel center" style="max-width:620px">
+    <div class="eyebrow"><b></b>解析完成</div>
+    <h1 style="font-size:34px">这是解析出来的<em>你</em></h1>
+    <p class="sub" style="margin-bottom:28px">不准的直接点掉。不改也能直接开始。</p>
+    <div class="ph" style="justify-content:center;align-items:center">
+      <div class="av" id="myAv" style="width:56px;height:56px;font-size:22px;
+        background:linear-gradient(135deg,#FF6A2B,#FFB690)">你</div>
+      <div style="text-align:left"><div class="pn" id="myNick" style="font-size:19px"></div>
+        <div class="pstat"><b></b>刚刚入库</div></div>
+    </div>
+    <div class="chips" id="myTags" style="justify-content:center;margin-top:8px"></div>
+    <p class="intro" id="myRaw" style="text-align:left;margin-top:24px"></p>
+    <div style="display:flex;gap:12px;margin-top:30px;justify-content:center">
+      <button class="btn" id="toMain">就是我，开始找搭子 →</button>
+      <button class="ghost" id="reIntro">重写</button>
+    </div>
+  </div>
+</section>
+
+<section class="view" id="v2">
+  <div class="center">
+    <div class="eyebrow"><b></b><span id="onlineN">1,248</span> 人正在等一个搭子</div>
+    <h1>今晚玩什么？<br><em>我帮你找个人一起。</em></h1>
+    <p class="sub">不用注册。一句话说清想玩什么、想找什么样的人，剩下的交给我。</p>
+    <div class="field" style="margin-top:34px"><textarea id="q" rows="3"></textarea></div>
+    <div class="chips" id="egs" style="justify-content:center;margin-top:16px"></div>
+    <button class="btn" id="go" style="margin-top:30px;padding:17px 46px;font-size:16.5px">开始匹配</button>
+  </div>
+</section>
+
+<section class="view" id="v2b">
+  <div class="steps">
+    <div class="step" id="k1"><span class="dot"></span><span class="tx">理解你的需求…</span></div>
+    <div class="chips" id="parsed" style="margin:-6px 0 22px 31px"></div>
+    <div class="step" id="k2"><span class="dot"></span><span class="tx">正在为你翻牌…</span></div>
+    <div class="radar" id="radar"><i></i><i></i><i></i><i></i><div class="sweep"></div>
+      <span class="blip" style="left:30%;top:24%"></span><span class="blip" style="left:71%;top:40%"></span>
+      <span class="blip" style="left:48%;top:74%"></span><span class="blip" style="left:20%;top:60%"></span>
+      <span class="blip" style="left:62%;top:66%"></span></div>
+    <div style="text-align:center"><button class="ghost" id="cancel">取消</button></div>
+  </div>
+</section>
+
+<section class="view" id="v2c">
+  <div class="res">
+    <div class="hero-card" id="card">
+      <div id="heroArt"></div>
+      <div class="hero-in">
+        <div class="ph">
+          <div class="av" id="rAv"></div>
+          <div style="padding-bottom:4px"><div class="pn" id="rName"></div>
+            <div class="pstat"><b></b><span id="rTime"></span></div></div>
+        </div>
+        <div class="chips" id="rTags"></div>
+        <p class="intro" id="rIntro"></p>
+      </div>
+    </div>
+    <div>
+      <div class="deg" id="degNote" style="display:none"></div>
+      <div class="why"><div class="wt">为什么是 TA</div><div id="rWhy"></div></div>
+      <div class="acts">
+        <button class="btn" id="chat">开聊</button>
+        <button class="btn sec" id="again">换一个</button>
+        <button class="ghost" id="reQuery">重新描述</button>
+      </div>
+      <button class="vis-link" id="visLink">未来：绑定 Steam / 游戏账号，战绩自动变标签 →</button>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div id="chatView">
+  <div class="chatbox">
+    <aside class="side"><div class="st">我的搭子</div><div id="listBox"></div></aside>
+    <div class="pane">
+      <div class="chead">
+        <div class="cbg" id="cBg"></div>
+        <div class="av" id="cAv"></div>
+        <div style="flex:1;min-width:0">
+          <div class="pn" id="cName" style="font-size:16px"></div>
+          <div style="font-size:11.5px;color:var(--dim)" id="cTags"></div>
+        </div>
+        <button class="ghost" id="cWhy">为什么匹配</button>
+        <button class="ghost" id="cClose" style="font-size:18px">✕</button>
+      </div>
+      <div class="cbody" id="cBody"></div>
+      <div class="quick" id="quick"></div>
+      <div class="cin">
+        <div class="field"><textarea id="cIn" rows="1" placeholder="说点什么…"></textarea></div>
+        <button class="send" id="cSend">↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mask"><div id="sheet">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end">
+    <div><div class="eyebrow" style="margin-bottom:14px"><b></b>Roadmap</div>
+      <h1 style="font-size:32px">游搭要<em>长成什么样</em></h1></div>
+    <button class="ghost" id="closeMask" style="font-size:20px">✕</button>
+  </div>
+  <div class="vgrid">
+    <div class="vcard"><h4>账号绑定<span class="tag">下一步</span></h4>
+      <p>绑定 Steam / 游戏账号，库存、时长、KDA 自动变成可信标签——不用自己吹，数据替你说话。</p>
+      <button class="soon">敬请期待</button></div>
+    <div class="vcard"><h4>认证真人 &amp; 安全<span class="tag">下一步</span></h4>
+      <p>真人认证、一键举报与拉黑。开麦社交绕不开这件事，所以安全能力永远免费。</p>
+      <button class="soon">敬请期待</button></div>
+    <div class="vcard"><h4>游搭 Pro<span class="tag">约 10 元 / 月</span></h4>
+      <p>性别与声音筛选、高峰期优先匹配、无限次换人。不做陪玩抽成，只做轻订阅。</p>
+      <button class="soon">敬请期待</button></div>
+  </div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   ①  游戏主视觉 · 正式图接入位
+   ------------------------------------------------------------------
+   assets/ 目录下已放入 11 款游戏主视觉（900px 宽，jpg，各 76—150KB）
+   + 品牌图 logo.png / mark.png。要换图直接覆盖同名文件即可，
+   代码无需改动。建议 900×500 以上、jpg/webp、单张 200KB 内。
+
+        delta.jpg      三角洲行动        r6.jpg         彩虹六号
+        valorant.jpg   无畏契约          ark.jpg        方舟：生存进化
+        cs2.jpg        CS2               horizons.jpg   Horizons Awakening
+        pubg.jpg       PUBG              novastone.jpg  Novastone Legends
+        apex.jpg       Apex 英雄         mark.png       品牌标记（顶栏）
+        warzone.jpg    使命召唤：战区     logo.png       完整字标（备用）
+        bf6.jpg        战地 6
+
+   文件不存在 / 加载失败时，<img> 自我移除，静默回落到下方
+   程序化生成的 SVG 占位图 —— 演示永远不会开天窗。
+   ══════════════════════════════════════════════════════════════════ */
+const ART_SRC={
+  '三角洲行动':'assets/delta.jpg',   '无畏契约':'assets/valorant.jpg',
+  'CS2':'assets/cs2.jpg',            'PUBG':'assets/pubg.jpg',
+  'Apex英雄':'assets/apex.jpg',      '使命召唤：战区':'assets/warzone.jpg',
+  '战地6':'assets/bf6.jpg',          '彩虹六号':'assets/r6.jpg',
+  '方舟：生存进化':'assets/ark.jpg', 'Horizons Awakening':'assets/horizons.jpg',
+  'Novastone Legends':'assets/novastone.jpg'
+};
+const ART_DESC={
+  '三角洲行动':'军事射击。烽火地带主打搜物资撤离，讲究稳；全面战场是大规模载具团战。',
+  '无畏契约':'5v5 战术射击。英雄技能加枪法，节奏快，对报点和沟通要求高。',
+  'CS2':'反恐精英续作。纯枪法与经济博弈，没有技能，老玩家基本盘最厚。',
+  'PUBG':'战术竞技开山鼻祖。百人跳伞，苟到决赛圈也是一种打法。',
+  'Apex英雄':'快节奏英雄射击。三人小队，位移和团队复活是核心，对配合要求高。',
+  '使命召唤：战区':'大逃杀模式。倒地能被队友救，古拉格还能复活一次，容错高。',
+  '战地6':'大规模战场。载具、破坏、兵种分工，一局能塞下上百人。',
+  '彩虹六号':'硬核战术攻防。可破坏墙体，一命制，靠道具和信息差取胜。',
+  '方舟：生存进化':'恐龙生存建造。驯龙、盖基地、开荒，适合慢节奏长期搭子。',
+  'Horizons Awakening':'开放世界 MMO。跑图刷本要配队，坦克、奶妈、输出缺一不可。',
+  'Novastone Legends':'开放世界冒险。风景党和探索党的天下，也能组队打副本。'
+};
+/* 无正式图时回落到哪张 SVG 占位 */
+const ART_FB={'PUBG':'三角洲行动','Apex英雄':'无畏契约','使命召唤：战区':'CS2',
+  '战地6':'三角洲行动','彩虹六号':'CS2','方舟：生存进化':'原神',
+  'Horizons Awakening':'原神','Novastone Legends':'永劫无间'};
+/* 正式图 + SVG 兜底叠层 */
+function artHTML(game,v){
+  const src=ART_SRC[game];
+  return (src?`<img class="greal" src="${src}" alt="${game}" loading="lazy" onerror="this.remove()">`:'')
+         + art(ART_FB[game]||game,v);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ②  SVG 占位图（原创抽象 key art，非官方素材）
+   ══════════════════════════════════════════════════════════════════ */
+const W=400,H=220;
+function art(game,v){
+  v=v||0; const o=v*26;                       // variant 位移
+  const hud=(c)=>`
+    <g stroke="${c}" stroke-width="1.2" fill="none" opacity=".5">
+      <path d="M14 30 L14 14 L36 14"/><path d="M${W-36} 14 L${W-14} 14 L${W-14} 30"/>
+      <path d="M14 ${H-30} L14 ${H-14} L36 ${H-14}"/><path d="M${W-36} ${H-14} L${W-14} ${H-14} L${W-14} ${H-30}"/>
+    </g>
+    <g stroke="${c}" stroke-width=".6" opacity=".16">
+      ${[80,140,200,260,320].map(x=>`<line x1="${x}" y1="0" x2="${x}" y2="${H}"/>`).join('')}
+      ${[60,120,180].map(y=>`<line x1="0" y1="${y}" x2="${W}" y2="${y}"/>`).join('')}
+    </g>`;
+  const A={
+  /* ── 三角洲行动：沙漠军事 / 直升机 / 瞄准框 ── */
+  '三角洲行动':`
+    <defs><linearGradient id="d1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B1608"/><stop offset=".46" stop-color="#7A3A12"/>
+      <stop offset=".62" stop-color="#E08A3C"/><stop offset="1" stop-color="#150B04"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#d1)"/>
+    <circle cx="${300-o}" cy="118" r="26" fill="#FFC27A" opacity=".55"/>
+    <path d="M0 150 L${70+o} 128 L130 146 L200 122 L270 144 L330 126 L${W} 148 L${W} ${H} L0 ${H}Z" fill="#3A1C08" opacity=".92"/>
+    <path d="M0 176 L90 160 L${170-o} 178 L250 158 L340 176 L${W} 164 L${W} ${H} L0 ${H}Z" fill="#150A03"/>
+    <g fill="#0B0603" opacity=".95" transform="translate(${86+o},74)">
+      <rect x="0" y="6" width="46" height="11" rx="5"/><rect x="40" y="8" width="30" height="4" rx="2"/>
+      <rect x="16" y="0" width="4" height="8"/><rect x="-14" y="-2" width="66" height="2.6" rx="1.3"/>
+      <rect x="4" y="17" width="4" height="6"/><rect x="34" y="17" width="4" height="6"/></g>
+    <g stroke="#FF9A4D" fill="none" stroke-width="1.6" opacity=".85" transform="translate(${252-o},96)">
+      <rect x="0" y="0" width="52" height="40" stroke-dasharray="13 13"/>
+      <line x1="26" y1="-8" x2="26" y2="6"/><line x1="26" y1="34" x2="26" y2="48"/>
+      <line x1="-8" y1="20" x2="6" y2="20"/><line x1="46" y1="20" x2="60" y2="20"/></g>
+    ${hud('#FFB37A')}`,
+  /* ── Steam 杂食：游戏库瓷砖墙 ── */
+  'Steam杂食':`
+    <defs><linearGradient id="s1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0A1830"/><stop offset=".55" stop-color="#123A66"/>
+      <stop offset="1" stop-color="#061020"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#s1)"/>
+    <circle cx="200" cy="110" r="120" fill="#3E9BFF" opacity=".13"/>
+    <g>${Array.from({length:24},(_,i)=>{const c=i%8,r=(i/8)|0;
+      const x=22+c*46+(r%2?16:0)+o, y=44+r*54, op=[.5,.28,.68,.36,.55,.24][i%6];
+      return `<rect x="${x}" y="${y}" width="38" height="44" rx="5" fill="#7FC0FF" opacity="${op}"/>`}).join('')}</g>
+    <rect x="${138+o}" y="82" width="86" height="60" rx="7" fill="#DCEEFF" opacity=".82"/>
+    <rect x="${138+o}" y="82" width="86" height="60" rx="7" fill="none" stroke="#fff" opacity=".5"/>
+    ${hud('#9CCBFF')}`,
+  /* ── 无畏契约：锐利几何 / 烟雾墙 ── */
+  '无畏契约':`
+    <defs><linearGradient id="v1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2A0A16"/><stop offset=".5" stop-color="#7A1230"/>
+      <stop offset="1" stop-color="#08272A"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#v1)"/>
+    <circle cx="${118+o}" cy="122" r="54" fill="#5EE6D8" opacity=".2"/>
+    <circle cx="${146+o}" cy="136" r="40" fill="#8FF3E8" opacity=".14"/>
+    <path d="M${W} 0 L${W} ${H} L${250-o} ${H} Z" fill="#FF4A63" opacity=".28"/>
+    <path d="M0 ${H} L0 96 L${140+o} ${H} Z" fill="#0B2B2E" opacity=".9"/>
+    <g fill="none" stroke="#FF6B80" stroke-width="2.4" opacity=".85">
+      <path d="M${230-o} 62 L${268-o} 100 L${230-o} 138 L${192-o} 100 Z"/></g>
+    <g fill="none" stroke="#5EE6D8" stroke-width="1.4" opacity=".6">
+      <path d="M${296-o} 52 L${330-o} 86"/><path d="M${330-o} 52 L${296-o} 86"/></g>
+    ${hud('#FF9DAC')}`,
+  /* ── CS2：仓库 / 弹道 / 准星 ── */
+  'CS2':`
+    <defs><linearGradient id="c1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1B1405"/><stop offset=".5" stop-color="#5C4413"/>
+      <stop offset="1" stop-color="#0A0803"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#c1)"/>
+    <circle cx="${210+o}" cy="86" r="72" fill="#FFC94A" opacity=".16"/>
+    <g fill="#120D03" opacity=".95">
+      <rect x="${16+o}" y="126" width="64" height="58"/><rect x="${86+o}" y="146" width="52" height="38"/>
+      <rect x="${262-o}" y="118" width="72" height="66"/><rect x="${340-o}" y="150" width="46" height="34"/></g>
+    <rect x="0" y="184" width="${W}" height="${H-184}" fill="#070502"/>
+    <g stroke="#FFD777" stroke-width="1.5" opacity=".75">
+      <line x1="${40+o}" y1="70" x2="${300+o}" y2="126" stroke-dasharray="9 7"/>
+      <line x1="${60+o}" y1="52" x2="${290+o}" y2="96" stroke-dasharray="5 9" opacity=".5"/></g>
+    <g stroke="#FFE8A8" stroke-width="1.8" opacity=".9">
+      <circle cx="200" cy="100" r="17" fill="none"/>
+      <line x1="200" y1="72" x2="200" y2="90"/><line x1="200" y1="110" x2="200" y2="128"/>
+      <line x1="172" y1="100" x2="190" y2="100"/><line x1="210" y1="100" x2="228" y2="100"/></g>
+    ${hud('#FFDA8C')}`,
+  /* ── 永劫无间：东方山水 / 飞檐 / 钩锁 ── */
+  '永劫无间':`
+    <defs><linearGradient id="n1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#150A2E"/><stop offset=".5" stop-color="#3E2168"/>
+      <stop offset="1" stop-color="#0A0518"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#n1)"/>
+    <circle cx="${296-o}" cy="58" r="27" fill="#FFE9B0" opacity=".78"/>
+    <circle cx="${288-o}" cy="52" r="27" fill="#1B0F36" opacity=".9"/>
+    <path d="M0 132 L${64+o} 84 L118 132 L176 96 L238 138 L300 104 L${W} 142 L${W} ${H} L0 ${H}Z" fill="#2A1650" opacity=".95"/>
+    <path d="M0 168 L${86-o} 132 L164 172 L246 138 L330 174 L${W} 156 L${W} ${H} L0 ${H}Z" fill="#100827"/>
+    <g fill="#0B0520" opacity=".96" transform="translate(${132+o},112)">
+      <path d="M-34 12 L34 12 L22 0 L-22 0 Z"/><rect x="-16" y="12" width="32" height="30"/>
+      <path d="M-26 -2 L26 -2 L14 -12 L-14 -12 Z"/></g>
+    <path d="M${216-o} 66 Q ${268-o} 92 ${242-o} 132" stroke="#C9A24A" stroke-width="1.8" fill="none" opacity=".85"/>
+    <circle cx="${216-o}" cy="66" r="3.6" fill="#F1D67F"/>
+    ${hud('#C9A6FF')}`,
+  /* ── 英雄联盟：峡谷 / 河道 / 六边形 ── */
+  '英雄联盟':`
+    <defs><linearGradient id="l1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04202C"/><stop offset=".5" stop-color="#0B5A72"/>
+      <stop offset="1" stop-color="#03141C"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#l1)"/>
+    <path d="M-20 ${H} Q ${140+o} 118 ${W+20} 26 L${W+20} ${H} Z" fill="#0A3C4E" opacity=".85"/>
+    <path d="M-20 ${H} Q ${170+o} 150 ${W+20} 66" stroke="#54E6FF" stroke-width="9" fill="none" opacity=".38"/>
+    <g fill="none" stroke="#7FF0FF" stroke-width="1.2" opacity=".42">
+      ${[[70,64],[126,44],[300,140],[352,116]].map(([x,y])=>
+        `<path d="M${x+o} ${y-13} l11 6.5 v13 l-11 6.5 l-11 -6.5 v-13 Z"/>`).join('')}</g>
+    <g fill="#03141C" opacity=".95">
+      <path d="M${60+o} 190 l0 -46 l9 -9 l16 0 l9 9 l0 46 Z"/>
+      <path d="M${306-o} 190 l0 -54 l10 -10 l18 0 l10 10 l0 54 Z"/></g>
+    <g fill="#8FF3FF" opacity=".7">
+      ${[150,176,202,228].map((x,i)=>`<circle cx="${x+o}" cy="${162+(i%2)*9}" r="3.2"/>`).join('')}</g>
+    ${hud('#7FE8FF')}`,
+  /* ── 王者荣耀：对称塔楼 / 兵线 ── */
+  '王者荣耀':`
+    <defs><linearGradient id="w1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2B0B24"/><stop offset=".5" stop-color="#7A1C50"/>
+      <stop offset="1" stop-color="#12040E"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#w1)"/>
+    <circle cx="200" cy="94" r="62" fill="#FFC46B" opacity=".2"/>
+    <circle cx="200" cy="94" r="34" fill="#FFE3AE" opacity=".26"/>
+    <g fill="#160510" opacity=".96">
+      <path d="M${52+o} 190 l0 -60 l-8 -8 l14 -10 l14 10 l-8 8 l0 60 Z"/>
+      <path d="M${348-o} 190 l0 -60 l-8 -8 l14 -10 l14 10 l-8 8 l0 60 Z"/>
+      <path d="M170 190 l0 -40 l30 -22 l30 22 l0 40 Z"/></g>
+    <g stroke="#FFB9DC" stroke-width="1.4" opacity=".5" fill="none">
+      <path d="M${70+o} 168 Q 200 132 ${330-o} 168"/>
+      <path d="M${70+o} 182 Q 200 152 ${330-o} 182" opacity=".55"/></g>
+    <g fill="#FFD9A0" opacity=".8">
+      ${[112,144,256,288].map(x=>`<circle cx="${x}" cy="164" r="3"/>`).join('')}</g>
+    ${hud('#FFAFD4')}`,
+  /* ── 原神：浮岛 / 风车 / 星光 ── */
+  '原神':`
+    <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#062A2E"/><stop offset=".48" stop-color="#0E6A66"/>
+      <stop offset="1" stop-color="#04191E"/></linearGradient></defs>
+    <rect width="${W}" height="${H}" fill="url(#g1)"/>
+    <circle cx="${310-o}" cy="52" r="22" fill="#FFF3C2" opacity=".7"/>
+    <g fill="#CFFFF4" opacity=".8">
+      ${[[60,40],[110,66],[168,34],[236,58],[352,86],[86,96]].map(([x,y],i)=>
+        `<circle cx="${x+o}" cy="${y}" r="${1.6+(i%3)*.7}"/>`).join('')}</g>
+    <path d="M0 156 L${76+o} 116 L142 154 L206 118 L272 152 L338 122 L${W} 152 L${W} ${H} L0 ${H}Z" fill="#0A4A48" opacity=".9"/>
+    <path d="M0 182 L96 154 L${182-o} 186 L268 156 L348 186 L${W} 172 L${W} ${H} L0 ${H}Z" fill="#032024"/>
+    <g transform="translate(${146+o},108)" opacity=".95">
+      <rect x="-4" y="0" width="8" height="48" fill="#05262A"/>
+      <g stroke="#8FF7E2" stroke-width="2.4" fill="none">
+        <line x1="0" y1="0" x2="0" y2="-24"/><line x1="0" y1="0" x2="21" y2="12"/><line x1="0" y1="0" x2="-21" y2="12"/></g>
+      <circle cx="0" cy="0" r="3.4" fill="#CFFFF4"/></g>
+    <ellipse cx="${276-o}" cy="128" rx="46" ry="9" fill="#0A4A48" opacity=".8"/>
+    <path d="M${232-o} 128 L${276-o} 158 L${320-o} 128 Z" fill="#032024" opacity=".9"/>
+    ${hud('#8FF7E2')}`
+  };
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">${A[game]||A['三角洲行动']}</svg>`;
+}
+
+/* ══════════════════════════ §9 种子数据 · 26 个 Bot 演员 ══════════════════════════ */
+const B=(n,g,v,game,role,rank,st,t,m,intro,c)=>({n,g,v,game,role,rank,st,t,m,intro,c});
+const BOTS=[
+ B('凌晨四点的枪声','male','低音炮','三角洲行动','突击','钻石','激进','深夜','INTJ','夜班下了才上号，只打排位，能开麦优先。',['我刚下班，正准备上号。','你打什么位？我突击，习惯先手开。']),
+ B('野区养猪户','male','少年音','三角洲行动','侦察','黄金','娱乐','晚间','ESFP','搜点物资就跑，不恋战，主打一个下班养生。',['来了来了，正愁没人。','咱不刚枪，搜完就撤，稳赚。']),
+ B('三班倒的支援','female','御姐音','三角洲行动','支援','铂金','稳健','深夜','ISTJ','医疗兵专精，队友倒了我一定拉，但别浪。',['在的，我今晚上夜班之前有两小时。','你冲你的，倒了我拉，别跑太散就行。']),
+ B('蹲坑一小时','secret','不开麦','三角洲行动','侦察','黄金','稳健','晚间','INTP','不开麦，打字沟通，喜欢阴人不喜欢正面刚。',['我不开麦，打字行吗？','我习惯先蹲一会儿看动静，不喜欢莽。']),
+ B('烽火老板娘','female','甜妹音','三角洲行动','突击','钻石','激进','晚间','ENTJ','带你跑高价值图，听指挥能一晚上翻本。',['来吧，今晚带你跑一趟大的。','跟紧我，装备我给你捡，别乱跑。']),
+ B('工程狗小陈','male','少年音','三角洲行动','工程','白银','娱乐','周末','ISFP','只有周末能玩，架桥修车我在行，枪法一般。',['我平时上班，周末基本全天在。','枪法一般，但载具和工事交给我。']),
+ B('一枪一个大聪明','male','低音炮','三角洲行动','突击','三角洲','激进','深夜','ESTP','满编队缺个人，别怂，跟着冲就完事。',['缺个人，你敢冲吗？','别怂，跟着我走，死了算我的。']),
+ B('温柔一刀','female','奶音','三角洲行动','支援','铂金','稳健','晚间','INFJ','说话轻声细语但会救人，讨厌队友互喷。',['嗨，我在的～','我不喜欢队友互相喷，安安静静打就好。']),
+ B('保险箱收藏家','male','少年音','三角洲行动','侦察','铂金','稳健','周末','ISTP','专门研究图点和刷新，稳赚不亏那种。',['周末有空，图点我熟。','我研究过刷新规律，跟我走基本不空手。']),
+ B('下班就上号','male','低音炮','三角洲行动','突击','黄金','娱乐','晚间','ENFP','六点半准时上线，输赢无所谓，图个乐。',['六点半准时上线，你几点？','输赢真无所谓，开心就行。']),
+ /* ── 无畏契约 4 ── */
+ B('奶但不带脑子','female','甜妹音','无畏契约','辅助','白金','娱乐','晚间','ENFP','技术下饭但气氛担当，输了不准骂人。',['我技术下饭，但我情绪价值满分。','说好了啊，输了不准骂人。']),
+ B('一秒五枪','male','低音炮','无畏契约','决斗','钻石','激进','深夜','ESTP','上分选手，要赢就跟我，不要赢就别加我。',['要上分吗？我今晚有的是时间。','我开我的，你跟点位就行。']),
+ B('哨位钉子户','secret','不开麦','无畏契约','哨位','黄金','稳健','周末','INTJ','守点专精，打字报点，不喜欢说话。',['我守 B 点，打字报点可以吗？','我不太说话，但报点很勤。']),
+ B('回城倒计时','female','御姐音','无畏契约','控场','铂金','稳健','晚间','ISTJ','控场专精，烟放哪我说了算。',['我玩控场，你冲我给你放烟。','别急着进，等我技能好。']),
+ /* ── CS2 4 ── */
+ B('二十年老狗','male','低音炮','CS2','指挥','大地球','稳健','深夜','ENTJ','从 1.6 玩到现在，能 call 位，脾气比年轻时好多了。',['还在，深夜局刚好。','我 call 位，你架点就行，不骂人。']),
+ B('手感玄学','male','少年音','CS2','狙击','黄金','娱乐','晚间','ISFP','只玩大狙，手感来了见谁秒谁，手感没了见谁送谁。',['今天手感还行，来一把？','我只用大狙，你介意吗？']),
+ B('闪光弹管够','female','甜妹音','CS2','突破手','白银','激进','晚间','ESFP','我扔闪你进，配合好一波带走。',['我扔闪你进，敢吗？','别怕，道具我管够。']),
+ B('沙二老图党','male','少年音','CS2','自由人','黄金','娱乐','周末','INFP','只玩沙二，闭着眼都知道点位。',['周末陪我打沙二？','这图我熟到能背下来。']),
+ /* ── PUBG 3 ── */
+ B('伏地魔本魔','female','奶音','PUBG','狙击','—','稳健','晚间','INFJ','趴一整局也能进决赛圈，别催我。',['我打法很苟，能接受吗？','苟到最后就是赢。']),
+ B('落地成盒专家','male','少年音','PUBG','自由人','—','娱乐','晚间','ISFP','菜是真的菜，乐也是真的乐。',['我大概率落地成盒，你介意吗？','没事，死了我看你打。']),
+ B('P城钉子户','male','低音炮','PUBG','突击','—','激进','深夜','ESTP','每把都跳 P 城，刚不过就重开。',['跳 P 城吗？刚枪爽。','怂什么，跳就完事。']),
+ /* ── Apex 3 ── */
+ B('恶灵本体','male','低音炮','Apex英雄','突击','大师','激进','深夜','ESTP','主玩恶灵，能开团能救人，习惯打到很晚。',['你玩什么英雄？','我开团你跟上，倒了我拉。']),
+ B('探路者小助手','female','甜妹音','Apex英雄','侦察','黄金','娱乐','晚间','ENFP','负责拉索跑图，打架看你的。',['我负责跑图，打架靠你。','索道我搭好，你放心冲。']),
+ B('永远在扶人','female','御姐音','Apex英雄','支援','铂金','稳健','晚间','ISFJ','奶妈型队友，你倒了我一定回来。',['你倒了我一定回来拉你。','别乱冲，我们一起进。']),
+ /* ── 使命召唤：战区 2 ── */
+ B('空投守门员','male','低音炮','使命召唤：战区','狙击','—','稳健','深夜','INTJ','蹲空投一蹲一小时，收益很稳。',['我蹲空投，你放风。','别急，人自己会来。']),
+ B('古拉格常客','male','少年音','使命召唤：战区','突击','—','激进','晚间','ESFP','进出古拉格无数次，心态倒是练出来了。',['我经常进古拉格但我心态好。','大不了再来一局。']),
+ /* ── 战地 6 · 3 ── */
+ B('载具修理工','male','低音炮','战地6','工程兵','—','稳健','晚间','ISTJ','坦克交给我修，你负责开炮。',['你开车我修车，一条龙。','别乱冲，等我把车修好。']),
+ B('高地架枪','female','御姐音','战地6','侦察兵','—','稳健','深夜','INTJ','喜欢占高点，报点顺便清场。',['我上高地，你走地面。','我给你报点，别暴露位置。']),
+ B('冲锋号响了','male','低音炮','战地6','突击兵','—','激进','晚间','ESTP','看到旗就想插，不怕死。',['旗在那边，跟我冲。','死了就复活，怕什么。']),
+ /* ── 彩虹六号 2 ── */
+ B('封窗艺术家','secret','不开麦','彩虹六号','防守','白金','稳健','周末','INTP','加固封窗是门手艺，我打字沟通。',['我不开麦，打字报点行吗？','守点交给我，你打游走。']),
+ B('干员池很深','female','御姐音','彩虹六号','进攻','钻石','激进','深夜','ENTJ','进攻方几乎全会，能指挥能突。',['你想打哪个点？我来开。','我能指挥，但你得听。']),
+ /* ── 方舟 2 ── */
+ B('驯龙高手','female','甜妹音','方舟：生存进化','驯龙','—','娱乐','周末','ENFP','我家龙比人多，缺个一起养的。',['你养龙吗？我这有一堆。','周末一起去抓翼龙？']),
+ B('工业党老李','male','低音炮','方舟：生存进化','建筑','—','稳健','周末','ISTJ','喜欢造大基地，急性子勿扰。',['我在造第三个基地了。','慢慢来，不赶进度。']),
+ /* ── 开放世界 2 ── */
+ B('晨曦拾荒者','female','御姐音','Horizons Awakening','治疗','—','稳健','晚间','INFJ','奶妈位，跑图刷本都行，就是缺个能扛的。',['我是奶妈，缺个坦。','你顶前面，我保你不死。']),
+ B('新星旅人','male','少年音','Novastone Legends','主C','—','娱乐','周末','INFP','主要是看风景，顺便打打怪。',['这游戏景色是真好看。','一起去地图边缘看看？'])
+];
+const GMETA={
+ '三角洲行动':['DELTA',[255,138,60]],       '无畏契约':['VALORANT',[255,80,110]],
+ 'CS2':['CS2',[255,205,95]],                'PUBG':['PUBG',[170,225,105]],
+ 'Apex英雄':['APEX',[190,130,255]],         '使命召唤：战区':['WARZONE',[110,190,255]],
+ '战地6':['BATTLEFIELD',[70,220,205]],      '彩虹六号':['R6 SIEGE',[225,230,245]],
+ '方舟：生存进化':['ARK',[95,205,130]],     'Horizons Awakening':['HORIZONS',[255,215,150]],
+ 'Novastone Legends':['NOVASTONE',[150,175,255]]};
+BOTS.forEach((b,i)=>{b.id='b'+i;b.rgb=GMETA[b.game][1];b.abbr=GMETA[b.game][0];
+  b.va=i%3; b.room=String(100000+((i*7919)%899999));b.gid=b.n.slice(0,2)+'#'+(1000+i*37%9000)});
+
+/* ══════════════════════════ 背景卡片流 ══════════════════════════ */
+function cardHTML(b,k){
+  const c=b.rgb.join(',');
+  return `<div class="gcard" data-bot="${b.id}">
+    <div class="gart">${artHTML(b.game,b.va)}
+      <div class="scanl"></div>
+      <div class="sheen" style="animation-delay:${(k*0.53)%6.5}s"></div>
+      <div class="gfade"></div>
+      <div class="gtop">
+        <span class="gbadge" style="background:rgba(${c},.22);color:rgb(${c});border:1px solid rgba(${c},.4)">${b.abbr}</span>
+        <span class="glive"><b></b>ONLINE</span>
+      </div>
+      <div class="gname">${b.n}</div>
+    </div>
+    <div class="ginfo"><i>${b.role}</i><i>${b.st}</i><i>${b.v}</i><i>${b.t}</i></div>
+  </div>`;
+}
+const ROWS=4, tweens=[];
+(function buildStream(){
+  const st=document.getElementById('stream');
+  for(let r=0;r<ROWS;r++){
+    const set=BOTS.filter((_,i)=>i%ROWS===r);
+    const pool=[]; while(pool.length<8) pool.push(...set);
+    const html=pool.slice(0,8).map((b,k)=>cardHTML(b,k+r*3)).join('');
+    const row=document.createElement('div');
+    row.className='row'; row.innerHTML=html+html;      // 复制一份做无缝循环
+    st.appendChild(row);
+  }
+  requestAnimationFrame(()=>{
+    document.querySelectorAll('.row').forEach((row,i)=>{
+      const half=row.scrollWidth/2, dir=i%2?1:-1, dur=54+i*11;
+      if(window.gsap){
+        tweens.push(gsap.fromTo(row,{x:dir<0?0:-half},{x:dir<0?-half:0,duration:dur,ease:'none',repeat:-1}));
+      }else{
+        const s=document.createElement('style');
+        s.textContent=`@keyframes mq${i}{from{transform:translateX(${dir<0?0:-half}px)}to{transform:translateX(${dir<0?-half:0}px)}}`;
+        document.head.appendChild(s); row.style.animation=`mq${i} ${dur}s linear infinite`;
+      }
+      row.dataset.i=i;
+    });
+    bindHover();
+  });
+})();
+function streamSpeed(v,d){if(window.gsap)tweens.forEach(t=>gsap.to(t,{timeScale:v,duration:d||.9,ease:'power2.inOut'}))}
+
+/* ── 悬停：暂停该排 + 轻提示「这是什么游戏」 ── */
+function rowPause(row,on){
+  const i=+row.dataset.i;
+  if(window.gsap&&tweens[i]) on?tweens[i].pause():tweens[i].resume();
+  else row.style.animationPlayState=on?'paused':'running';
+}
+function bindHover(){
+  const tip=document.getElementById('tip');
+  let hot=null;
+  function place(el){
+    const r=el.getBoundingClientRect(), t=tip.getBoundingClientRect();
+    let x=r.left+r.width/2-t.width/2, y=r.top-t.height-14;
+    if(y<12) y=r.bottom+14;
+    tip.style.left=Math.max(12,Math.min(innerWidth-t.width-12,x))+'px';
+    tip.style.top=Math.max(12,Math.min(innerHeight-t.height-12,y))+'px';
+  }
+  document.querySelectorAll('.gcard').forEach(el=>{
+    const b=BOTS.find(x=>x.id===el.dataset.bot); if(!b)return;
+    const row=el.closest('.row');
+    el.addEventListener('mouseenter',()=>{
+      if(hot&&hot!==el){hot.classList.remove('hot')}
+      hot=el; el.classList.add('hot'); rowPause(row,true);
+      const c=b.rgb.join(',');
+      document.getElementById('tipAbbr').textContent=b.abbr;
+      document.getElementById('tipAbbr').style.cssText=
+        `background:rgba(${c},.2);color:rgb(${c});border:1px solid rgba(${c},.42)`;
+      document.getElementById('tipGame').textContent=b.game;
+      document.getElementById('tipDesc').textContent=ART_DESC[b.game]||'';
+      document.getElementById('tipWho').textContent=
+        `${b.n} · ${b.role}${b.rank!=='—'?' / '+b.rank:''} · ${b.st} · ${b.v} · ${b.t}在线`;
+      tip.classList.add('on'); requestAnimationFrame(()=>place(el));
+    });
+    el.addEventListener('mouseleave',()=>{
+      el.classList.remove('hot'); rowPause(row,false);
+      if(hot===el){hot=null; tip.classList.remove('on')}
+    });
+  });
+}
+let px=0,py=0;
+addEventListener('mousemove',e=>{px=(e.clientX/innerWidth-.5)*24;py=(e.clientY/innerHeight-.5)*15});
+(function loop(){const s=document.getElementById('stream');
+  s.style.marginLeft=px.toFixed(1)+'px';s.style.marginTop=py.toFixed(1)+'px';requestAnimationFrame(loop)})();
+
+/* ══════════════════════════ §8-A 解析（本地规则版）══════════════════════════ */
+const GAMES={
+ '三角洲行动':['三角洲','delta','烽火','三角州','全面战场'],
+ '无畏契约':['瓦','valorant','无畏契约','瓦罗兰'],
+ 'CS2':['cs2','csgo','反恐精英','沙二','cs'],
+ 'PUBG':['pubg','吃鸡','绝地求生','大逃杀'],
+ 'Apex英雄':['apex','阿佩克斯','恶灵'],
+ '使命召唤：战区':['战区','warzone','使命召唤','cod','古拉格'],
+ '战地6':['战地','battlefield','bf6','bf'],
+ '彩虹六号':['彩虹六号','彩六','r6','siege','干员'],
+ '方舟：生存进化':['方舟','ark','生存进化','驯龙','恐龙'],
+ 'Horizons Awakening':['horizons','晨曦','地平线'],
+ 'Novastone Legends':['novastone','新星','诺瓦']};
+const VOICES=['低音炮','少年音','御姐音','甜妹音','奶音','不开麦'];
+const STYLES={'激进':/激进|猛|刚枪|莽|冲|上分|carry/,'稳健':/稳健|稳|苟|保守|发育|细/,'娱乐':/娱乐|佛系|轻松|快乐|摸鱼|图个乐|随便玩|养生/};
+const TIMES={'现在':/现在|马上|立刻|就能上|这就/,'今晚':/今晚|晚上|晚间|几点|[89]点|十点|下班/,'深夜':/深夜|凌晨|半夜|通宵|后半夜/,'周末':/周末|礼拜六|星期六|周六|周日/};
+/* 长词在前：避免「突击兵」被拆成「突击」 */
+const ROLES=['突击兵','工程兵','支援兵','侦察兵','突破手','自由人','主C',
+ '突击','支援','侦察','工程','辅助','狙击','指挥','决斗','哨位','控场','控制',
+ '进攻','防守','建筑','驯龙','治疗','坦克'];
+const COMP={'突击':'支援','支援':'突击','侦察':'工程','工程':'侦察','决斗':'辅助','辅助':'决斗',
+  '主C':'治疗','治疗':'主C','狙击':'突破手','突破手':'狙击','指挥':'自由人','自由人':'指挥',
+  '哨位':'决斗','控场':'决斗','进攻':'防守','防守':'进攻','驯龙':'建筑','建筑':'驯龙',
+  '突击兵':'工程兵','工程兵':'突击兵','侦察兵':'突击兵','坦克':'治疗'};
+function parse(t){
+  const s=(t||'').toLowerCase();
+  const r={games:[],partner:{gender:null,voice:null,style:null,roles:[]},my_roles:[],time:null,mode:'specific',raw:t};
+  for(const[g,k]of Object.entries(GAMES))if(k.some(x=>s.includes(x)))r.games.push(g);
+  if(/女生|妹子|女的|女孩|小姐姐|女玩家|\b女\b|女搭子/.test(t))r.partner.gender='female';
+  else if(/男生|大哥|老哥|男的|哥哥|男玩家|\b男\b|男搭子/.test(t))r.partner.gender='male';
+  for(const v of VOICES)if(t.includes(v))r.partner.voice=v;
+  if(!r.partner.voice&&/声音好听|好听的声音|声音甜|音好听/.test(t))r.partner.voice='甜妹音';
+  for(const[k,re]of Object.entries(STYLES))if(re.test(t)){r.partner.style=k;break}
+  for(const[k,re]of Object.entries(TIMES))if(re.test(t)){r.time=k;break}
+  for(const ro of ROLES){if(t.includes(ro)){const i=t.indexOf(ro),pre=t.slice(Math.max(0,i-4),i);
+    (/我|自己|本人/.test(pre)?r.my_roles:r.partner.roles).push(ro)}}
+  /* 去掉被更长词包含的（突击 ⊂ 突击兵） */
+  const trim=a=>a.filter(x=>!a.some(y=>y!==x&&y.includes(x)));
+  r.my_roles=trim(r.my_roles); r.partner.roles=trim(r.partner.roles);
+  if(/随便|随缘|来个|有人就行|都行|无所谓|不知道玩什么/.test(t)&&!r.games.length)r.mode='random';
+  return r;
+}
+function tagsOf(r){
+  const o=[];o.push(...(r.games.length?r.games:[r.mode==='random'?'随缘匹配':'不限游戏']));
+  if(r.partner.gender)o.push(r.partner.gender==='female'?'找女生':'找男生');
+  if(r.partner.roles.length)o.push('对方打 '+r.partner.roles.join('/'));
+  if(r.my_roles.length)o.push('我打 '+r.my_roles.join('/'));
+  if(r.partner.style)o.push(r.partner.style);
+  if(r.partner.voice)o.push(r.partner.voice);
+  if(r.time)o.push(r.time);
+  return o;
+}
+function rank(r,exclude){
+  let pool=BOTS.filter(b=>!exclude.includes(b.id)),degraded=null;
+  const hg=b=>!r.games.length||r.games.includes(b.game);
+  const hs=b=>!r.partner.gender||b.g===r.partner.gender;
+  let hard=pool.filter(b=>hg(b)&&hs(b));
+  if(!hard.length&&r.partner.gender){hard=pool.filter(hg);
+    degraded=`没找到常玩${r.games.join('/')||'这个'}的${r.partner.gender==='female'?'女生':'男生'}，TA 是最接近的。`}
+  if(!hard.length){hard=pool;degraded='没有完全对上的人，TA 是目前最接近你需求的。'}
+  if(!hard.length){hard=BOTS.slice();exclude.length=0}
+  return{list:hard.map(b=>{
+    let s=18,hit={};
+    if(r.games.includes(b.game)){s+=26;hit.game=1}
+    if(r.partner.gender&&b.g===r.partner.gender){s+=14;hit.sex=1}
+    if(r.partner.voice&&b.v===r.partner.voice){s+=16;hit.voice=1}
+    if(r.partner.style&&b.st===r.partner.style){s+=16;hit.style=1}
+    if(r.time&&(b.t===r.time||(r.time==='现在'&&b.t==='晚间'))){s+=14;hit.time=1}
+    if(r.partner.roles.includes(b.role)){s+=12;hit.role=1}
+    if(r.my_roles.some(x=>COMP[x]===b.role)){s+=12;hit.comp=1}
+    if(r.mode==='random')s+=Math.random()*30;
+    return{b,s,hit};
+  }).sort((a,b)=>b.s-a.s),degraded};
+}
+function why(r,x){
+  const b=x.b,h=x.hit,L=[];
+  if(h.game&&h.comp)L.push(`你们都常驻${b.game}，TA 打${b.role}位，正好补上你的${r.my_roles[0]}。`);
+  else if(h.game&&h.role)L.push(`同样常玩${b.game}，而且 TA 就是你要的${b.role}位。`);
+  else if(h.game)L.push(`你们都常玩${b.game}，TA 打${b.role}${b.rank!=='—'?'，'+b.rank:''}。`);
+  else L.push(`TA 主玩${b.game}（${b.role}），和你的口味最接近。`);
+  const t2=[];
+  if(h.sex)t2.push(b.g==='female'?'女生':'男生');
+  if(h.voice)t2.push(b.v);
+  if(h.style)t2.push(b.st+'打法');
+  if(h.time)t2.push(b.t+'在线');
+  L.push(t2.length?`TA 是${t2.join('、')}——正好是你说的那种。`:`TA ${b.st}路线、${b.t}在线，声音是${b.v}。`);
+  return L;
+}
+
+/* ══════════════════════════ 状态 ══════════════════════════ */
+const LS='youda_web_v2';
+let S={me:null,q:null,swaps:0,excl:[],cur:null,ss:{},why:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem(LS)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}};
+const $=i=>document.getElementById(i);
+const G=()=>window.gsap;
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const grad=b=>`linear-gradient(135deg,rgb(${b.rgb.join(',')}),rgba(${b.rgb.join(',')},.5))`;
+const VIEWS=['v1','v1b','v2','v2b','v2c'];
+function show(id){
+  VIEWS.forEach(v=>$(v).classList.toggle('on',v===id));
+  $('stream').classList.toggle('dim',id==='v2c');
+  if(G()&&!RM)G().from('#'+id,{opacity:0,y:14,duration:.45,ease:'power2.out'});
+}
+let tt;function toast(m){const e=$('toast');e.textContent=m;e.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>e.style.opacity=0,2000)}
+let on=1248;setInterval(()=>{on+=Math.floor(Math.random()*7)-3;on=Math.max(1180,Math.min(1400,on));
+  $('onlineN').textContent=on.toLocaleString()},3000);
+
+/* ══════════════════════════ V1 ══════════════════════════ */
+const INSERT=[
+ ['常玩游戏',[['三角洲行动','主玩三角洲行动，'],['无畏契约','主玩无畏契约，'],['CS2','主玩 CS2，'],['PUBG','主玩 PUBG，'],['Apex 英雄','主玩 Apex，'],['战区','主玩使命召唤战区，'],['战地 6','主玩战地6，'],['彩虹六号','主玩彩虹六号，'],['方舟','主玩方舟生存进化，'],['Horizons','主玩 Horizons，'],['Novastone','主玩 Novastone，']]],
+ ['位置',[['突击','打突击位，'],['支援','打支援位，'],['侦察','打侦察位，'],['工程','打工程位，'],['狙击','玩狙击，'],['突破手','当突破手，'],['指挥','能指挥，'],['治疗','玩治疗位，']]],
+ ['风格',[['激进','打法激进，'],['稳健','打法稳健，'],['娱乐','纯娱乐不上分，']]],
+ ['性别',[['男','男，'],['女','女，'],['保密','性别保密，']]],
+ ['声音',[['低音炮','声音低音炮，'],['少年音','声音少年音，'],['御姐音','声音御姐音，'],['甜妹音','声音甜妹音，'],['奶音','声音奶音，'],['不开麦','不开麦只打字，']]],
+ ['时段',[['下午','下午在线，'],['晚间','晚上在线，'],['深夜','深夜才上号，'],['周末','只有周末能玩，']]],
+ ['MBTI',[['I 人','I 人，'],['E 人','E 人，']]]];
+$('inserter').innerHTML=INSERT.map(([t,a])=>
+ `<div class="grp"><div class="gt">${t}</div><div class="chips">`+
+ a.map(([l,v])=>`<button class="chip sm" data-v="${v}">${l}</button>`).join('')+`</div></div>`).join('');
+$('inserter').addEventListener('click',e=>{
+  const c=e.target.closest('.chip');if(!c)return;
+  const ta=$('intro');ta.value=ta.value.trim()+c.dataset.v;ta.focus();
+  if(G()&&!RM)G().fromTo(c,{scale:1},{scale:1.16,duration:.11,yoyo:true,repeat:1,ease:'power2.out'});
+  c.classList.add('on');setTimeout(()=>c.classList.remove('on'),900);
+});
+$('toCard').onclick=()=>{
+  const nk=$('nick').value.trim(),iv=$('intro').value.trim();
+  if(nk.length<2){toast('昵称至少 2 个字');$('nick').focus();return}
+  if(!iv){toast('用一句话说说你自己');$('intro').focus();return}
+  const p=parse(iv);S.me={nick:nk,raw:iv,...p};save();
+  $('myNick').textContent=nk;$('myAv').textContent=nk[0];$('myRaw').textContent='原话：'+iv;
+  const tg=[...(p.games.length?p.games:['未指定游戏']),...p.my_roles];
+  if(p.partner.style)tg.push(p.partner.style);
+  if(p.partner.voice)tg.push(p.partner.voice);
+  if(p.time)tg.push(p.time);
+  $('myTags').innerHTML=tg.map(t=>`<button class="chip on">${t} <span style="opacity:.45">×</span></button>`).join('');
+  [...$('myTags').children].forEach(b=>b.onclick=()=>{
+    if(G()&&!RM)G().to(b,{scale:.8,opacity:0,duration:.2,onComplete:()=>b.remove()});else b.remove()});
+  show('v1b');
+  if(G()&&!RM)G().from('#myTags .chip',{scale:.6,y:10,opacity:0,duration:.42,stagger:.055,ease:'back.out(1.7)',delay:.15});
+};
+$('reIntro').onclick=()=>show('v1');
+$('skip').onclick=()=>{S.me=null;save();show('v2')};
+$('toMain').onclick=()=>show('v2');
+$('navMe').onclick=()=>S.me?show('v1b'):show('v1');
+$('navList').onclick=()=>{const k=Object.keys(S.ss).filter(x=>S.ss[x].m.length);
+  k.length?openChat(k[k.length-1]):toast('还没有聊过的搭子')};
+
+/* ══════════════════════════ V2 ══════════════════════════ */
+const PH=['随便来个搭子，今晚有人一起就行',
+ '想找个女生一起玩三角洲，我打突击她打支援，最好声音好听点，现在就能上号',
+ '找个稳健的女生周末一起玩方舟，最好甜妹音',
+ '今晚打 CS2，找个能 call 位的老哥，别骂人'];
+let pi=0;$('q').placeholder='比如：'+PH[0];
+setInterval(()=>{if(document.activeElement===$('q')||$('q').value)return;
+  pi=(pi+1)%PH.length;$('q').placeholder='比如：'+PH[pi]},3600);
+$('egs').innerHTML=PH.map(p=>`<button class="chip">${p.length>22?p.slice(0,22)+'…':p}</button>`).join('');
+[...$('egs').children].forEach((b,i)=>b.onclick=()=>{$('q').value=PH[i];$('q').focus()});
+
+let timers=[];
+$('go').onclick=()=>{
+  const v=$('q').value.trim()||PH[pi];const r=parse(v);
+  if(S.me){if(!r.games.length&&S.me.games.length)r.games=S.me.games.slice();
+    if(!r.my_roles.length&&S.me.my_roles.length)r.my_roles=S.me.my_roles.slice()}
+  S.q=r;S.excl=[];S.swaps=0;save();runMatch();
+};
+function runMatch(){
+  show('v2b');
+  $('stream').classList.add('rush');streamSpeed(7,1);
+  ['k1','k2'].forEach(k=>$(k).className='step');
+  $('parsed').innerHTML='';$('k1').classList.add('live');
+  timers.forEach(clearTimeout);timers=[];
+  const tags=tagsOf(S.q);
+  tags.forEach((t,i)=>timers.push(setTimeout(()=>{
+    const el=document.createElement('span');el.className='chip acc plain';el.textContent=t;
+    $('parsed').appendChild(el);
+    if(G()&&!RM)G().from(el,{scale:.6,y:10,opacity:0,duration:.44,ease:'back.out(1.7)'});
+  },280+i*100)));
+  const t1=280+tags.length*100+380;
+  timers.push(setTimeout(()=>{$('k1').className='step done';$('k2').classList.add('live');
+    if(G()&&!RM)G().fromTo('.blip',{opacity:0,scale:.3},{opacity:1,scale:1,duration:.3,stagger:.19,repeat:1,yoyo:true});
+  },t1));
+  timers.push(setTimeout(()=>{$('k2').className='step done';result()},t1+2000));
+}
+$('cancel').onclick=()=>{timers.forEach(clearTimeout);$('stream').classList.remove('rush');streamSpeed(1);show('v2')};
+
+function result(){
+  const{list,degraded}=rank(S.q,S.excl);
+  if(!list.length){toast('候选耗尽，已复位');S.excl=[];return runMatch()}
+  const x=list[0],b=x.b;S.cur=b.id;S.excl.push(b.id);S.why[b.id]=why(S.q,x);save();
+  $('stream').classList.remove('rush');streamSpeed(.26,1.4);
+  const c=b.rgb.join(',');
+  $('heroArt').innerHTML=artHTML(b.game,b.va)+
+    `<div class="scanl"></div><div class="sheen"></div><div class="gfade"></div>
+     <div class="gtop"><span class="gbadge" style="background:rgba(${c},.22);color:rgb(${c});border:1px solid rgba(${c},.45)">${b.abbr}</span>
+     <span class="glive"><b></b>ONLINE</span></div>`;
+  $('degNote').style.display=degraded?'block':'none';if(degraded)$('degNote').textContent=degraded;
+  $('rAv').textContent=b.n[0];$('rAv').style.background=grad(b);
+  $('rName').textContent=b.n;$('rTime').textContent=b.t+'活跃 · 在线';
+  $('rTags').innerHTML=[b.game,b.role+(b.rank!=='—'?' / '+b.rank:''),b.st,b.v,b.t]
+    .map(t=>`<span class="chip sm plain">${t}</span>`).join('');
+  $('rWhy').innerHTML=S.why[b.id].map(l=>`<p>${l}</p>`).join('');
+  $('rIntro').textContent='“'+b.intro+'”';
+  $('again').textContent=S.swaps>=3?'重新描述':'换一个'+(S.swaps?`（剩 ${3-S.swaps} 次）`:'');
+  show('v2c');
+  if(G()&&!RM){
+    G().from('#card',{rotationY:-92,z:-150,transformPerspective:900,duration:.78,ease:'power4.out'});
+    G().from('#heroArt svg',{scale:1.18,duration:1.6,ease:'power2.out',delay:.3});
+    G().from('#rTags .chip',{y:10,opacity:0,duration:.32,stagger:.055,delay:.6});
+    G().from('#rWhy p',{y:16,opacity:0,duration:.55,stagger:.13,delay:.72,ease:'power2.out'});
+    G().from('.acts>*',{y:12,opacity:0,duration:.4,stagger:.07,delay:1.08});
+  }
+}
+$('again').onclick=()=>{if(S.swaps>=3){toast('换太多次啦，重新描述一下需求');show('v2');return}
+  S.swaps++;save();runMatch()};
+$('reQuery').onclick=()=>{streamSpeed(1);show('v2')};
+
+/* ══════════════════════════ 愿景 ══════════════════════════ */
+$('visLink').onclick=()=>{$('mask').classList.add('on');
+  if(G()&&!RM){G().from('#sheet',{y:34,opacity:0,duration:.4,ease:'power3.out'});
+    G().from('.vcard',{y:26,opacity:0,duration:.45,stagger:.09,delay:.1})}};
+$('closeMask').onclick=()=>$('mask').classList.remove('on');
+$('mask').onclick=e=>{if(e.target===$('mask'))$('mask').classList.remove('on')};
+document.querySelectorAll('.soon').forEach(b=>b.onclick=()=>toast('Coming soon'));
+
+/* ══════════════════════════ 聊天 ══════════════════════════ */
+const QUICK=['上号？','交换游戏 ID','进我 KOOK 房','开麦吗'];
+$('quick').innerHTML=QUICK.map(q=>`<button class="chip">${q}</button>`).join('');
+$('quick').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;
+  $('cIn').value=c.textContent;send()});
+let now=null;
+$('chat').onclick=()=>openChat(S.cur);
+$('cClose').onclick=()=>{$('chatView').classList.remove('on');streamSpeed(1)};
+$('cWhy').onclick=()=>toast((S.why[now.id]||[])[0]||'—');
+function openChat(id){
+  now=BOTS.find(b=>b.id===id);if(!now)return;
+  if(!S.ss[id])S.ss[id]={m:[],k:0};
+  $('cBg').innerHTML=artHTML(now.game,now.va);
+  $('cAv').textContent=now.n[0];$('cAv').style.background=grad(now);
+  $('cName').textContent=now.n;$('cTags').textContent=[now.game,now.role,now.st,now.v].join(' · ');
+  if(!S.ss[id].m.length){S.ss[id].m.push({me:1,t:ice(now)});reply(now,'')}
+  draw();renderList();$('chatView').classList.add('on');save();
+  if(G()&&!RM)G().from('.chatbox',{y:22,opacity:0,scale:.985,duration:.4,ease:'power3.out'});
+}
+function ice(b){
+  if(b.v==='不开麦')return `嗨，看你习惯打字沟通，我也不太爱开麦，${b.game}一起？`;
+  if(S.q&&S.q.my_roles.length&&COMP[S.q.my_roles[0]]===b.role)
+    return `在吗？我打${S.q.my_roles[0]}，你${b.role}，正好凑一队，今晚来两把？`;
+  return `在吗？看你也玩${b.game}，今晚一起来两把？`;
+}
+function draw(){
+  const s=S.ss[now.id];
+  $('cBody').innerHTML=s.m.map(m=>m.sys?`<div class="sys">${m.t}</div>`
+    :`<div class="msg ${m.me?'me':'ta'}"><div class="bub">${m.t}</div></div>`).join('');
+  $('cBody').scrollTop=$('cBody').scrollHeight;
+}
+function typing(o){const e=$('typRow');
+  if(o&&!e){$('cBody').insertAdjacentHTML('beforeend',
+    `<div class="msg ta" id="typRow"><div class="bub typ"><i></i><i></i><i></i></div></div>`);
+    $('cBody').scrollTop=$('cBody').scrollHeight}
+  else if(!o&&e)e.remove()}
+function pick(b,t){
+  const s=S.ss[b.id];
+  if(/上号|上线|开一把|来一把|走一个/.test(t))return `行啊，我现在就在线。KOOK 房号 ${b.room}，你直接进。`;
+  if(/kook|房|房间/i.test(t))return `我房号 ${b.room}，进来我给你开麦。`;
+  if(/id|好友|加你|账号/i.test(t))return `我游戏 ID：${b.gid}，你加我一下。`;
+  if(/开麦|语音|说话/.test(t))return b.v==='不开麦'?'我一般不开麦，打字沟通行不行？':`开啊，我${b.v}，别嫌吵就行。`;
+  return b.c[Math.min(s.k,b.c.length-1)];
+}
+function reply(b,t){
+  const s=S.ss[b.id];
+  setTimeout(()=>typing(true),320);
+  setTimeout(()=>{
+    typing(false);s.m.push({me:0,t:pick(b,t)});s.k++;
+    if(s.k>=4&&!s.done){s.done=1;s.m.push({sys:1,t:`已交换 KOOK 房号 ${b.room} · 演示到此`})}
+    draw();renderList();save();
+    if(G()&&!RM){const n=$('cBody').lastElementChild;if(n)G().from(n,{y:18,scale:.93,opacity:0,duration:.38,ease:'power2.out'})}
+  },900+Math.random()*1400);
+}
+function send(){
+  const v=$('cIn').value.trim();if(!v||!now)return;
+  S.ss[now.id].m.push({me:1,t:v});$('cIn').value='';draw();save();
+  if(G()&&!RM){const n=$('cBody').lastElementChild;G().from(n,{y:18,scale:.93,opacity:0,duration:.38,ease:'power2.out'})}
+  reply(now,v);
+}
+$('cSend').onclick=send;
+$('cIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+function renderList(){
+  const ids=Object.keys(S.ss).filter(k=>S.ss[k].m.length);
+  $('listBox').innerHTML=ids.length?ids.map(id=>{
+    const b=BOTS.find(x=>x.id===id),l=S.ss[id].m[S.ss[id].m.length-1];
+    return `<button class="item ${now&&now.id===id?'on':''}" data-id="${id}">
+      <span class="av" style="background:${grad(b)}">${b.n[0]}</span>
+      <span style="flex:1;min-width:0"><span class="nm" style="display:block">${b.n}</span>
+      <span class="ls" style="display:block">${l.t}</span></span></button>`}).join('')
+    :`<p style="font-size:12.5px;color:var(--dim2);padding:8px 6px;line-height:1.8">还没有聊过的人。<br>匹配到搭子后点「开聊」。</p>`;
+  [...$('listBox').children].forEach(el=>{if(el.dataset&&el.dataset.id)el.onclick=()=>openChat(el.dataset.id)});
+}
+
+document.querySelectorAll('textarea').forEach(t=>t.addEventListener('input',()=>{
+  t.style.height='auto';t.style.height=Math.min(t.scrollHeight,150)+'px'}));
+renderList();
+if(S.me){$('nick').value=S.me.nick||'';$('intro').value=S.me.raw||'';show('v2')}
+</script>
+</body>
+</html>

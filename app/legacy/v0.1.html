@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>游戏搭子 · 一句话找到今晚的队友</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        ink:  '#08080d',
+        ink2: '#0e0e17',
+        neon: '#b8f34a',
+        cyan2:'#4fe3d0',
+        haze: '#8a8aa3'
+      },
+      fontFamily: {
+        sans: ['-apple-system','BlinkMacSystemFont','PingFang SC','Hiragino Sans GB','Microsoft YaHei','sans-serif']
+      }
+    }
+  }
+}
+</script>
+<style>
+  html,body{background:#08080d;-webkit-tap-highlight-color:transparent;}
+  body{overscroll-behavior:none;}
+  .glow-bg::before{
+    content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:
+      radial-gradient(60vw 60vw at 12% 8%, rgba(184,243,74,.10), transparent 60%),
+      radial-gradient(55vw 55vw at 88% 92%, rgba(79,227,208,.10), transparent 60%),
+      radial-gradient(40vw 40vw at 70% 20%, rgba(140,90,255,.08), transparent 60%);
+  }
+  .card{background:rgba(255,255,255,.045);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.09);}
+  .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);}
+  .chip-on{background:rgba(184,243,74,.14);border-color:rgba(184,243,74,.5);color:#d6ff8f;}
+  textarea{resize:none;}
+  .focus-glow:focus-within{border-color:rgba(184,243,74,.55);box-shadow:0 0 0 4px rgba(184,243,74,.10),0 0 40px -8px rgba(184,243,74,.35);}
+  .fade-in{animation:fi .45s cubic-bezier(.2,.7,.3,1) both;}
+  @keyframes fi{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .pop{animation:pp .5s cubic-bezier(.2,1.3,.4,1) both;}
+  @keyframes pp{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+  .scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#b8f34a,transparent);animation:sc 1.5s linear infinite;}
+  @keyframes sc{0%{top:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{top:100%;opacity:0}}
+  .bar{display:inline-block;width:3px;border-radius:3px;background:#b8f34a;}
+  .playing .bar{animation:wv .75s ease-in-out infinite;}
+  @keyframes wv{0%,100%{height:5px}50%{height:18px}}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.13);border-radius:6px}
+  .hide-sb::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="glow-bg font-sans text-white min-h-screen antialiased">
+
+<div class="relative z-10 max-w-2xl mx-auto px-5 pb-24 pt-7">
+
+  <!-- ============ HEADER ============ -->
+  <header class="flex items-center justify-between mb-8">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-neon flex items-center justify-center">
+        <span class="text-ink font-black text-lg leading-none">搭</span>
+      </div>
+      <div>
+        <div class="font-bold tracking-tight leading-none">游戏搭子</div>
+        <div class="text-[10px] text-haze mt-0.5 leading-none">今晚玩什么？我帮你找个人一起</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 text-[11px] text-haze">
+      <span class="w-1.5 h-1.5 rounded-full bg-neon"></span>
+      <span id="onlineCount">1,248</span> 人在线
+    </div>
+  </header>
+
+  <!-- ============ SCREEN 0 · ONBOARDING ============ -->
+  <section id="scrOnboard" class="fade-in">
+    <div class="mb-5">
+      <div class="text-[11px] text-neon font-medium mb-2 tracking-wide">第 1 步 / 共 2 步</div>
+      <h1 class="text-[26px] leading-snug font-bold">先用一句话<br>介绍下你自己</h1>
+      <p class="text-sm text-haze mt-2.5 leading-relaxed">不用填表，说人话就行。系统会自动整理成你的搭子名片。</p>
+    </div>
+
+    <div class="card rounded-2xl p-4 focus-glow transition-all duration-300">
+      <textarea id="inpProfile" rows="3" class="w-full bg-transparent outline-none text-[15px] leading-relaxed placeholder:text-haze/60"
+        placeholder="比如：我玩三角洲和瓦，水平一般，I 人，愿意开麦但不爱指挥，一般晚上 9 点后在线。"></textarea>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mt-3" id="profileExamples"></div>
+
+    <button id="btnProfile" class="w-full mt-5 h-13 py-3.5 rounded-2xl bg-neon text-ink font-bold text-[15px] active:scale-[.985] transition-transform">
+      生成我的搭子名片
+    </button>
+    <button id="btnSkip" class="w-full mt-2.5 py-3 rounded-2xl text-haze text-sm active:scale-[.985] transition-transform">
+      跳过，以游客身份直接找搭子
+    </button>
+  </section>
+
+  <!-- ============ SCREEN 0.5 · PROFILE CARD ============ -->
+  <section id="scrCard" class="hidden">
+    <div class="mb-5">
+      <div class="text-[11px] text-neon font-medium mb-2 tracking-wide">这是你的搭子名片</div>
+      <h1 class="text-[26px] leading-snug font-bold">看看对不对？</h1>
+      <p class="text-sm text-haze mt-2.5 leading-relaxed">点击标签可以删掉不准的。不用改也能直接开始。</p>
+    </div>
+
+    <div class="card rounded-2xl p-5 pop">
+      <div class="flex items-center gap-3 mb-4">
+        <div id="myAvatar" class="w-12 h-12 rounded-xl bg-gradient-to-br from-neon to-cyan2 flex items-center justify-center text-ink font-black text-xl">你</div>
+        <div>
+          <div class="font-bold">我</div>
+          <div class="text-[11px] text-haze mt-0.5">刚刚创建</div>
+        </div>
+      </div>
+      <div id="myTags" class="flex flex-wrap gap-2"></div>
+      <p id="myRaw" class="text-[12px] text-haze/70 mt-4 pt-4 border-t border-white/10 leading-relaxed"></p>
+    </div>
+
+    <button id="btnToMatch" class="w-full mt-5 py-3.5 rounded-2xl bg-neon text-ink font-bold text-[15px] active:scale-[.985] transition-transform">
+      这就是我，开始找搭子 →
+    </button>
+    <button id="btnBackOnboard" class="w-full mt-2.5 py-3 rounded-2xl text-haze text-sm">重新介绍一次</button>
+  </section>
+
+  <!-- ============ SCREEN 1 · MATCH INPUT ============ -->
+  <section id="scrMatch" class="hidden">
+    <div class="mb-5">
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-[11px] text-neon font-medium tracking-wide">第 2 步 / 共 2 步</div>
+        <button id="btnEditProfile" class="text-[11px] text-haze underline underline-offset-2">我的名片</button>
+      </div>
+      <h1 class="text-[26px] leading-snug font-bold">今晚想玩什么？<br>想找个什么样的人？</h1>
+      <p class="text-sm text-haze mt-2.5 leading-relaxed">随便说，说得越具体匹配越准；只说个游戏名也行。</p>
+    </div>
+
+    <div class="card rounded-2xl p-4 focus-glow transition-all duration-300">
+      <textarea id="inpMatch" rows="3" class="w-full bg-transparent outline-none text-[15px] leading-relaxed placeholder:text-haze/60"
+        placeholder="比如：今晚 9 点想打三角洲烽火，水平一般，想找个愿意开麦、不压力的队友。"></textarea>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mt-3" id="matchExamples"></div>
+
+    <button id="btnMatch" class="w-full mt-5 py-3.5 rounded-2xl bg-neon text-ink font-bold text-[15px] active:scale-[.985] transition-transform">
+      帮我找搭子
+    </button>
+
+    <div id="sessionsWrap" class="mt-8 hidden">
+      <div class="text-[11px] text-haze mb-2.5 tracking-wide">最近聊过</div>
+      <div id="sessionList" class="space-y-2"></div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 2 · MATCHING ANIMATION ============ -->
+  <section id="scrLoading" class="hidden">
+    <div class="card rounded-2xl p-6 relative overflow-hidden mt-6">
+      <div class="scan"></div>
+      <div class="flex flex-wrap gap-2 mb-6" id="parsedChips"></div>
+      <div class="space-y-3.5" id="loadSteps"></div>
+    </div>
+    <button id="btnCancel" class="w-full mt-4 py-3 rounded-2xl text-haze text-sm">取消</button>
+  </section>
+
+  <!-- ============ SCREEN 3 · RESULT ============ -->
+  <section id="scrResult" class="hidden">
+    <div id="fallbackNote" class="hidden mb-4 rounded-xl px-4 py-3 text-[12px] leading-relaxed"
+         style="background:rgba(255,190,80,.09);border:1px solid rgba(255,190,80,.28);color:#ffd79a">
+      暂时没有和你需求完全一致的玩家，这是目前最接近的搭子。可以点「换一个」继续看。
+    </div>
+
+    <div class="card rounded-2xl overflow-hidden pop">
+      <div class="p-5">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div id="rAvatar" class="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl text-ink"></div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span id="rName" class="font-bold text-lg"></span>
+                <span id="rMbti" class="text-[10px] px-1.5 py-0.5 rounded chip text-haze"></span>
+              </div>
+              <div class="flex items-center gap-1.5 text-[11px] text-neon mt-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-neon"></span><span id="rOnline"></span>
+              </div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div id="rScore" class="text-3xl font-black text-neon leading-none tabular-nums">0<span class="text-lg">%</span></div>
+            <div class="text-[10px] text-haze mt-1">契合度</div>
+          </div>
+        </div>
+
+        <!-- voice placeholder -->
+        <button id="btnVoice" class="w-full mt-4 rounded-xl chip px-4 py-3 flex items-center gap-3 active:scale-[.99] transition-transform">
+          <span class="w-8 h-8 rounded-full bg-neon flex items-center justify-center shrink-0">
+            <span id="voiceIcon" class="text-ink text-xs leading-none">▶</span>
+          </span>
+          <span id="voiceBars" class="flex items-end gap-[3px] h-[18px] flex-1"></span>
+          <span id="voiceTime" class="text-[11px] text-haze tabular-nums shrink-0">0:08</span>
+        </button>
+
+        <div id="rGame" class="mt-4 text-sm text-white/85"></div>
+
+        <div id="rReasons" class="mt-4 space-y-2"></div>
+
+        <p id="rIntro" class="mt-4 text-[13px] text-haze leading-relaxed italic border-l-2 border-neon/40 pl-3"></p>
+      </div>
+
+      <div class="px-5 pb-3 flex items-center justify-between">
+        <button id="btnReport" class="text-[11px] text-haze/60 underline underline-offset-2">举报 / 屏蔽</button>
+        <div class="text-[10px] text-haze/50">模拟玩家 · Demo 演示数据</div>
+      </div>
+    </div>
+
+    <button id="btnHi" class="w-full mt-4 py-3.5 rounded-2xl bg-neon text-ink font-bold text-[15px] active:scale-[.985] transition-transform">
+      打个招呼
+    </button>
+    <div class="grid grid-cols-2 gap-3 mt-2.5">
+      <button id="btnNext" class="py-3 rounded-2xl chip text-sm font-medium active:scale-[.985] transition-transform">换一个</button>
+      <button id="btnShare" class="py-3 rounded-2xl chip text-sm font-medium active:scale-[.985] transition-transform">分享匹配卡</button>
+    </div>
+    <button id="btnRestart" class="w-full mt-2.5 py-3 rounded-2xl text-haze text-sm">重新描述需求</button>
+  </section>
+</div>
+
+<!-- ============ CHAT LAYER ============ -->
+<div id="chatLayer" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" id="chatBackdrop"></div>
+  <div id="chatPanel" class="absolute inset-x-0 bottom-0 top-0 sm:top-10 max-w-2xl mx-auto flex flex-col bg-ink2 sm:rounded-t-3xl border-t border-white/10 transition-transform duration-300 translate-y-full">
+    <div class="flex items-center gap-3 px-4 py-3.5 border-b border-white/10 shrink-0">
+      <button id="btnChatBack" class="text-haze text-xl leading-none px-1">←</button>
+      <div id="cAvatar" class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-ink"></div>
+      <div class="flex-1 min-w-0">
+        <div id="cName" class="font-bold text-sm leading-tight"></div>
+        <div id="cSub" class="text-[10px] text-neon mt-0.5"></div>
+      </div>
+      <div class="text-[10px] text-haze/50 text-right leading-tight">模拟对话<br>Demo 数据</div>
+    </div>
+
+    <div id="chatBody" class="flex-1 overflow-y-auto px-4 py-4 space-y-3"></div>
+
+    <div class="px-4 py-3 border-t border-white/10 shrink-0" style="padding-bottom:calc(.75rem + env(safe-area-inset-bottom))">
+      <div class="flex items-end gap-2">
+        <div class="flex-1 card rounded-2xl px-3.5 py-2.5 focus-glow transition-all">
+          <textarea id="chatInput" rows="1" class="w-full bg-transparent outline-none text-sm placeholder:text-haze/50" placeholder="说点什么…"></textarea>
+        </div>
+        <button id="btnSend" class="w-11 h-11 rounded-2xl bg-neon text-ink font-bold shrink-0 active:scale-95 transition-transform">↑</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-8 z-[60] px-4 py-2.5 rounded-xl text-[13px] font-medium opacity-0 pointer-events-none transition-opacity duration-300"
+     style="background:rgba(255,255,255,.1);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.16)"></div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   1. 模拟玩家池 — 7 款游戏 × 4 人 = 28 人
+   ══════════════════════════════════════════════════ */
+const GAMES = {
+  '三角洲行动': ['烽火地带','全面战场','危机行动'],
+  '瓦罗兰特':   ['竞技模式','休闲模式','爆发模式'],
+  '英雄联盟':   ['排位赛','匹配模式','云顶之弈'],
+  'CS2':        ['竞技模式','搞事模式','爆破'],
+  '永劫无间':   ['三人组队','单人','娱乐模式'],
+  'Apex英雄':   ['三人小队','排位赛','混合模式'],
+  '蛋仔派对':   ['巅峰派对','乐园','组队闯关']
+};
+
+const ALIAS = {
+  '三角洲行动':['三角洲','delta','烽火','烽火地带','全面战场','三角州'],
+  '瓦罗兰特':['瓦','valorant','无畏契约','瓦罗兰','val'],
+  '英雄联盟':['lol','联盟','撸啊撸','峡谷','云顶','英雄联盟'],
+  'CS2':['cs','csgo','cs2','反恐精英','csgo2'],
+  '永劫无间':['永劫','naraka','无间'],
+  'Apex英雄':['apex','阿佩克斯','ap'],
+  '蛋仔派对':['蛋仔','蛋仔派对']
+};
+
+// level: 1新手 2普通 3高手 | style: chill竞技chill/comp/explore/social
+// mic: yes/sometimes/no | time: evening/late/afternoon/anytime
+const P = (name,game,mode,level,style,mic,mbti,time,intro,traits,c1,c2) =>
+  ({name,game,mode,level,style,mic,mbti,time,intro,traits,c1,c2});
+
+const POOL = [
+  // ── 三角洲行动 ──
+  P('小北','三角洲行动','烽火地带',2,'chill','yes','I','evening','我一般 9 点上线，混两把就睡，不卷。',['不压力','情绪稳定','耐心'],'哈喽～我刚上线，正想找人搜图呢。','放心，我从来不骂人，死了就死了。'),
+  P('老鹰','三角洲行动','烽火地带',3,'comp','yes','E','evening','打了 800 多小时，喜欢带人跑高价值图。',['带人','会指挥','技术好'],'来了兄弟，今晚想跑几把大的？','跟着我走位就行，装备我给你捡。'),
+  P('阿汤','三角洲行动','全面战场',1,'social','sometimes','E','evening','刚入坑两周，纯图个乐，别嫌我菜。',['新手','话多','心态好'],'诶正好！我也刚想开一把。','我菜是菜了点，但我快乐啊哈哈。'),
+  P('沉默的鱼','三角洲行动','烽火地带',2,'explore','no','I','late','不太爱说话，打字沟通，喜欢慢慢搜。',['安静','打字沟通','细心'],'嗨，我一般不开麦，打字可以吗？','我习惯把每个房间都搜干净再走。'),
+
+  // ── 瓦罗兰特 ──
+  P('Kira','瓦罗兰特','竞技模式',2,'chill','yes','I','evening','黄金卡了半年了，主玩辅助位，佛系上分。',['不压力','辅助位','稳'],'嗨～今晚想打几把排位吗？','我玩辅助的，你随便选，我兜着。'),
+  P('番茄','瓦罗兰特','休闲模式',1,'social','yes','E','evening','纯娱乐，输赢无所谓，主要想聊天。',['话多','娱乐','不在意输赢'],'终于有人陪我打瓦了！','我们边打边聊呗，输了也没关系。'),
+  P('DUSK','瓦罗兰特','竞技模式',3,'comp','yes','I','late','钻二，习惯打后半夜，认真但不骂人。',['技术好','夜猫子','不骂人'],'在的，你大概什么水平？','我不喷人的，配合好就行。'),
+  P('小满','瓦罗兰特','竞技模式',2,'chill','sometimes','I','evening','偶尔开麦，主要报点，性格比较慢热。',['慢热','会报点','温和'],'你好呀，我可以开麦但话不多。','我主要负责报点，指挥就交给你了。'),
+
+  // ── 英雄联盟 ──
+  P('峡谷老登','英雄联盟','排位赛',3,'comp','yes','E','evening','打野出身，能带能扛，就是嘴碎。',['带人','话多','技术好'],'来来来，双排上分走一个。','你选个舒服的，剩下我来处理。'),
+  P('豆芽','英雄联盟','匹配模式',1,'chill','sometimes','I','evening','只玩匹配，不打排位，怕挨骂。',['新手','怕挨骂','佛系'],'嗨…你打匹配吗？我不太敢排位。','谢谢你不嫌我菜，我尽量不送。'),
+  P('云顶之王','英雄联盟','云顶之弈',2,'explore','no','I','late','主玩云顶，喜欢研究阵容，不太开麦。',['研究型','安静','爱钻研'],'我最近在练一个新阵容，要一起研究吗？','我不太开麦，但打字挺快的。'),
+  P('阿柚','英雄联盟','排位赛',2,'social','yes','E','afternoon','下午有空，白金水平，主要图个热闹。',['白天在线','热闹','稳定'],'我下午一般都在，晚上反而不一定。','我水平中等，但心态特别好。'),
+
+  // ── CS2 ──
+  P('Ashy','CS2','竞技模式',3,'comp','yes','E','late','老 CSGO 玩家，能 call 位，习惯打到两三点。',['会指挥','夜猫子','老玩家'],'嗨，你打的什么段位？','我可以 call 位，你负责跟着架点就行。'),
+  P('土豆','CS2','搞事模式',1,'social','yes','E','evening','纯搞事，主要玩枪王和跳跃图。',['娱乐','搞怪','新手友好'],'搞事模式一起？比竞技好玩多了。','我们玩点乐子的，别那么严肃。'),
+  P('清一','CS2','竞技模式',2,'chill','sometimes','I','evening','水平一般，主要求个不被喷的环境。',['不压力','安静','稳'],'我水平就那样，能接受吗？','我不喜欢队友互喷，安安静静打就好。'),
+  P('狙击手老王','CS2','爆破',2,'explore','yes','I','evening','就爱玩 AWP，喜欢研究点位。',['研究点位','专注','耐心'],'我基本只用大狙，你介意吗？','我最近在练一个新点位，可以试试。'),
+
+  // ── 永劫无间 ──
+  P('刀客特','永劫无间','三人组队',2,'comp','yes','E','evening','主玩宁红夜，喜欢刚枪，不喜欢苟。',['激进','爱刚枪','直接'],'来一把？我打法比较激进。','我冲你跟，别怂就完事了。'),
+  P('躺平胡桃','永劫无间','娱乐模式',1,'chill','sometimes','I','evening','纯躺，队友抬我就行，我负责鼓掌。',['佛系','需要带','心态好'],'我技术一般，你带我可以吗？','我会给你捡东西的！'),
+  P('风间','永劫无间','三人组队',3,'comp','yes','I','late','日炎段位，打得比较稳，不喜欢乱冲。',['技术好','稳','有策略'],'你好，我打得偏稳，可以吗？','我们先发育，后期再打。'),
+  P('小鹿','永劫无间','单人','2','social','yes','E','evening','喜欢边打边聊，输赢无所谓。',['话多','轻松','友好'],'嗨嗨嗨，终于找到人了！','我们边打边聊天呗～'),
+
+  // ── Apex英雄 ──
+  P('Wraith本体','Apex英雄','三人小队',3,'comp','yes','E','late','主玩恶灵，能开团能救人，习惯打到很晚。',['技术好','会带','夜猫子'],'在的，你玩什么英雄？','我开团你跟上，倒了我拉。'),
+  P('椰子','Apex英雄','混合模式',1,'chill','sometimes','I','evening','新手，还在学跑图，别嫌我慢。',['新手','慢热','认真'],'我还在学地图，可能会走丢…','谢谢你有耐心，我学得挺快的。'),
+  P('莱恩','Apex英雄','三人小队',2,'social','yes','E','evening','中等水平，主要想找固定队友。',['想固定','稳定','友好'],'如果打得来的话，能长期一起吗？','我基本每天这个点都在。'),
+  P('雾','Apex英雄','排位赛',2,'explore','no','I','evening','不开麦，用信号系统沟通，打得比较细。',['不开麦','用信号','细致'],'我不开麦，用标记沟通行吗？','我标记打得很勤，不会让你迷路的。'),
+
+  // ── 蛋仔派对 ──
+  P('圆滚滚','蛋仔派对','巅峰派对',2,'social','yes','E','evening','纯快乐玩家，喜欢一起整活。',['整活','快乐','话多'],'一起滚一把？我贼喜欢这个。','我们去乐园整点花活儿。'),
+  P('糖不甩','蛋仔派对','组队闯关',1,'chill','sometimes','I','afternoon','下午在线比较多，喜欢闯关地图。',['白天在线','温和','爱闯关'],'我一般下午玩，晚上要早睡。','闯关图我收藏了好多，带你玩。'),
+  P('蛋总','蛋仔派对','巅峰派对',3,'comp','yes','E','evening','巅峰赛打得多，想冲高分。',['冲分','技术好','有目标'],'一起冲巅峰赛？我差一点上榜。','跟着我的路线走，能省不少时间。'),
+  P('小汤圆','蛋仔派对','乐园',1,'explore','no','I','evening','喜欢在乐园里逛地图，不太爱竞技。',['安静','爱探索','随性'],'我一般就在乐园里瞎逛。','我发现了几张特别好玩的图。')
+];
+
+// 补全每个玩家的派生字段
+POOL.forEach((p,i)=>{
+  p.id = 'p'+i;
+  p.level = Number(p.level);
+  p.room = String(100000 + ((i*7919) % 899999));
+  const hues = [[184,243,74],[79,227,208],[255,138,180],[160,130,255],[255,196,84],[120,200,255]];
+  p.rgb = hues[i % hues.length];
+});
+
+const TIME_LABEL = {evening:'今晚在线', late:'后半夜在线', afternoon:'下午在线', anytime:'随时在线'};
+const STYLE_LABEL = {chill:'佛系', comp:'竞技', explore:'探索型', social:'社交型'};
+const MIC_LABEL = {yes:'愿意开麦', sometimes:'偶尔开麦', no:'不开麦'};
+const LEVEL_LABEL = {1:'新手', 2:'水平普通', 3:'高手'};
+
+/* ══════════════════════════════════════════════════
+   2. 本地关键词解析（P0 · 断网可用）
+   ══════════════════════════════════════════════════ */
+function parse(text){
+  const t = (text||'').toLowerCase();
+  const r = {games:[],mode:null,time:null,level:null,style:null,mic:null,mbti:null,wants:[],raw:text};
+
+  for(const [g,keys] of Object.entries(ALIAS))
+    if(keys.some(k=>t.includes(k.toLowerCase()))) r.games.push(g);
+
+  for(const modes of Object.values(GAMES))
+    for(const m of modes) if(t.includes(m.toLowerCase())) { r.mode = m; break; }
+
+  if(/后半夜|通宵|凌晨|半夜|很晚|夜猫/.test(t)) r.time='late';
+  else if(/今晚|晚上|夜里|[89]点|九点|十点|10点|21|22/.test(t)) r.time='evening';
+  else if(/下午|白天|中午|上午/.test(t)) r.time='afternoon';
+  else if(/现在|马上|立刻|随时/.test(t)) r.time='anytime';
+
+  if(/新手|萌新|刚入坑|不会玩|菜鸟|小白|刚玩|入门/.test(t)) r.level=1;
+  else if(/高手|大佬|大神|上分|钻石|王者|职业|带我飞|技术好/.test(t)) r.level=3;
+  else if(/一般|普通|中等|还行|凑合/.test(t)) r.level=2;
+
+  if(/佛系|轻松|不卷|随便|娱乐|摸鱼|躺|不压力|放松/.test(t)) r.style='chill';
+  else if(/上分|冲分|竞技|排位|认真|赢|carry|带我上/.test(t)) r.style='comp';
+  else if(/探索|开荒|研究|新游戏|逛|剧情|地图/.test(t)) r.style='explore';
+  else if(/聊天|social|社交|说话|热闹|唠/.test(t)) r.style='social';
+
+  if(/不开麦|不想说话|静音|别开麦|打字/.test(t)) r.mic='no';
+  else if(/偶尔开麦|少说话|话不多/.test(t)) r.mic='sometimes';
+  else if(/开麦|语音|麦克风|说话|连麦/.test(t)) r.mic='yes';
+
+  if(/\bi人|i人|内向|社恐|安静|话少/.test(t)) r.mbti='I';
+  else if(/\be人|e人|外向|社牛|话多|能聊/.test(t)) r.mbti='E';
+
+  const WANTS = {
+    '不压力':/不压力|别压力|没压力|轻松点/, '不骂人':/不骂|别喷|不喷|脾气好|不凶/,
+    '情绪稳定':/情绪稳定|心态好|不上头|稳重/, '耐心':/耐心|有耐心|愿意教|带带我|教我/,
+    '会指挥':/指挥|call位|带队|会带/, '想固定':/固定|长期|以后也|常玩|每天/
+  };
+  for(const [w,re] of Object.entries(WANTS)) if(re.test(t)) r.wants.push(w);
+
+  return r;
+}
+
+function chipsOf(q){
+  const out = [];
+  if(q.games.length) out.push(...q.games); else out.push('不限游戏');
+  if(q.mode) out.push(q.mode);
+  if(q.time) out.push(TIME_LABEL[q.time].replace('在线',''));
+  if(q.level) out.push(LEVEL_LABEL[q.level]);
+  if(q.style) out.push(STYLE_LABEL[q.style]);
+  if(q.mic) out.push(MIC_LABEL[q.mic]);
+  if(q.mbti) out.push(q.mbti+' 人');
+  out.push(...q.wants);
+  return out;
+}
+
+/* ══════════════════════════════════════════════════
+   3. 匹配：游戏硬过滤 → 池内加权排序
+   ══════════════════════════════════════════════════ */
+const W = {time:.30, style:.25, mic:.20, level:.15, mbti:.10};
+
+function score(q, p){
+  let s = 0, hits = {};
+
+  // 时间 30%
+  let ts = q.time ? (q.time===p.time ? 1 : (p.time==='anytime'||q.time==='anytime' ? .7 : .3)) : .75;
+  hits.time = ts >= .9; s += ts * W.time;
+
+  // 目标与风格 25%
+  let ss = q.style ? (q.style===p.style ? 1 : .4) : .7;
+  hits.style = ss >= .9; s += ss * W.style;
+
+  // 开麦 20%
+  const micRank = {no:0, sometimes:1, yes:2};
+  let ms = .7;
+  if(q.mic){ const d = Math.abs(micRank[q.mic]-micRank[p.mic]); ms = d===0?1:(d===1?.6:.2); }
+  hits.mic = ms >= .9; s += ms * W.mic;
+
+  // 水平 15%
+  let ls = q.level ? 1 - Math.abs(q.level-p.level)/2 : .7;
+  hits.level = ls >= .9; s += ls * W.level;
+
+  // 性格 10%
+  let ps = q.mbti ? (q.mbti===p.mbti ? 1 : .5) : .7;
+  hits.mbti = ps >= .9; s += ps * W.mbti;
+
+  // wants 微加成
+  const w = q.wants.filter(x=>p.traits.includes(x)).length;
+  hits.wants = q.wants.filter(x=>p.traits.includes(x));
+  s += Math.min(w*.04, .08);
+
+  return {s: Math.min(s,1), hits};
+}
+
+function match(q){
+  let pool = q.games.length ? POOL.filter(p=>q.games.includes(p.game)) : POOL.slice();
+  let fallback = false;
+  if(pool.length === 0){ pool = POOL.slice(); fallback = true; }
+  const ranked = pool.map(p=>({p, ...score(q,p)})).sort((a,b)=>b.s-a.s);
+  return {ranked, fallback};
+}
+
+// 契合度显示：锁 68—95，随「换一个」递减
+const CAPS = [92,87,83,79,76,74,72,71,70,69,68];
+function display(rawScore, idx){
+  const cap = CAPS[Math.min(idx, CAPS.length-1)];
+  const v = Math.round(cap - (1-rawScore)*5);
+  return Math.max(68, Math.min(95, v));
+}
+
+function reasons(q, p, hits){
+  const out = [];
+  if(hits.style) out.push(`你们都想${STYLE_LABEL[p.style]}地玩，游戏目标一致`);
+  if(hits.time)  out.push(`今晚可玩时间高度重合，都是${TIME_LABEL[p.time].replace('在线','')}的人`);
+  if(hits.mic)   out.push(`沟通方式一致，都${MIC_LABEL[p.mic]}`);
+  if(hits.level) out.push(`水平接近，${LEVEL_LABEL[p.level]}，不会互相拖累`);
+  if(hits.mbti)  out.push(`都是 ${p.mbti} 人，相处节奏合得来`);
+  if(hits.wants && hits.wants.length) out.push(`对方也是「${hits.wants.join('、')}」的类型`);
+  // 兜底补充
+  const spare = [
+    `都在玩${p.game}，而且都常打${p.mode}`,
+    `${p.traits[0]}，和你的描述比较接近`,
+    `在线时段有重合，今晚能凑上`
+  ];
+  let i = 0;
+  while(out.length < 3 && i < spare.length) out.push(spare[i++]);
+  return out.slice(0,3);
+}
+
+function icebreaker(q, p){
+  const g = p.game, base = [
+    `在吗？看到你也玩${g}，今晚一起来两把？`,
+    `嗨～${g}${p.mode}，今晚有空一起吗？`,
+    `你好，看你也是${STYLE_LABEL[p.style]}路线的，一起玩会儿？`
+  ];
+  if(p.traits.includes('带人')) return `大哥在吗，${g}带带我呗，今晚有空不？`;
+  if(p.traits.includes('新手')) return `嗨，看你也刚入坑${g}，一起慢慢摸索？`;
+  if(p.mic==='no') return `你好，看你习惯打字沟通，我也不太爱开麦，${g}一起？`;
+  return base[Math.abs(p.name.charCodeAt(0)) % base.length];
+}
+
+/* ══════════════════════════════════════════════════
+   4. 状态与工具
+   ══════════════════════════════════════════════════ */
+const LS = 'youxidazi_v02';
+let ST = {profile:null, query:null, ranked:[], idx:0, fallback:false, sessions:{}};
+try{ Object.assign(ST, JSON.parse(localStorage.getItem(LS)||'{}')); }catch(e){}
+const save = () => { try{ localStorage.setItem(LS, JSON.stringify(ST)); }catch(e){} };
+
+const $ = id => document.getElementById(id);
+const SCREENS = ['scrOnboard','scrCard','scrMatch','scrLoading','scrResult'];
+function show(id){
+  SCREENS.forEach(s=>$(s).classList.add('hidden'));
+  $(id).classList.remove('hidden');
+  $(id).classList.remove('fade-in'); void $(id).offsetWidth; $(id).classList.add('fade-in');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+let toastT;
+function toast(msg){
+  const el = $('toast'); el.textContent = msg; el.style.opacity = '1';
+  clearTimeout(toastT); toastT = setTimeout(()=>el.style.opacity='0', 1900);
+}
+const rgba = (p,a) => `rgba(${p.rgb[0]},${p.rgb[1]},${p.rgb[2]},${a})`;
+const grad = p => `linear-gradient(135deg, rgb(${p.rgb.join(',')}), rgba(${p.rgb.join(',')},.55))`;
+
+/* 在线人数缓慢漂移 */
+let online = 1248;
+setInterval(()=>{
+  online += Math.floor(Math.random()*7) - 3;
+  online = Math.max(1180, Math.min(1400, online));
+  $('onlineCount').textContent = online.toLocaleString();
+}, 3000);
+
+/* 示例胶囊 */
+const EX_PROFILE = ['我玩三角洲，水平一般，I 人，愿意开麦不爱指挥','瓦罗兰特黄金，佛系上分，晚上 9 点后在线','CS2 老玩家，能 call 位，习惯打到两三点'];
+const EX_MATCH = ['今晚打三角洲烽火，找个佛系不骂人的','随便玩点啥，有人一起就行','瓦罗兰特排位，最好也是 I 人，别太压力','永劫无间，想找个能带我的大哥'];
+function fillExamples(wrap, arr, input){
+  wrap.innerHTML = arr.map(x=>`<button class="chip rounded-full px-3 py-1.5 text-[11px] text-haze active:scale-95 transition-transform">${x}</button>`).join('');
+  [...wrap.children].forEach((b,i)=>b.onclick=()=>{ input.value = arr[i]; input.focus(); });
+}
+fillExamples($('profileExamples'), EX_PROFILE, $('inpProfile'));
+fillExamples($('matchExamples'), EX_MATCH, $('inpMatch'));
+
+/* ══════════════════════════════════════════════════
+   5. 屏 1 · Onboarding
+   ══════════════════════════════════════════════════ */
+$('btnProfile').onclick = ()=>{
+  const v = $('inpProfile').value.trim();
+  if(!v){ toast('用一句话说说你自己就行'); $('inpProfile').focus(); return; }
+  ST.profile = parse(v); save(); renderProfileCard(); show('scrCard');
+};
+$('btnSkip').onclick = ()=>{ ST.profile = null; save(); show('scrMatch'); renderSessions(); };
+$('btnBackOnboard').onclick = ()=> show('scrOnboard');
+$('btnToMatch').onclick = ()=>{ show('scrMatch'); renderSessions(); };
+$('btnEditProfile').onclick = ()=>{
+  if(ST.profile){ renderProfileCard(); show('scrCard'); } else show('scrOnboard');
+};
+
+function renderProfileCard(){
+  const q = ST.profile;
+  const tags = chipsOf(q);
+  $('myTags').innerHTML = tags.map((t,i)=>
+    `<button data-i="${i}" class="chip chip-on rounded-full px-3 py-1.5 text-[12px] active:scale-95 transition-transform">${t} <span class="opacity-40 ml-0.5">×</span></button>`
+  ).join('');
+  [...$('myTags').children].forEach(b=>{
+    b.onclick = ()=>{ b.style.transition='all .2s'; b.style.opacity='0'; b.style.transform='scale(.8)'; setTimeout(()=>b.remove(),200); };
+  });
+  $('myRaw').textContent = '原话：' + q.raw;
+}
+
+/* ══════════════════════════════════════════════════
+   6. 屏 2 · 匹配
+   ══════════════════════════════════════════════════ */
+const LOAD_STEPS = ['正在理解你的游戏状态','正在寻找今晚在线的玩家','正在比较时间、玩法和沟通偏好','找到一位合适的搭子'];
+let loadTimers = [];
+
+$('btnMatch').onclick = ()=>{
+  const v = $('inpMatch').value.trim();
+  if(!v){ toast('用一句话描述今晚想玩什么'); $('inpMatch').focus(); return; }
+  const q = parse(v);
+  // 用名片补全缺失字段
+  if(ST.profile){
+    ['level','style','mic','mbti'].forEach(k=>{ if(q[k]==null && ST.profile[k]!=null) q[k]=ST.profile[k]; });
+    if(!q.games.length && ST.profile.games.length) q.games = ST.profile.games.slice();
+  }
+  ST.query = q;
+  const {ranked, fallback} = match(q);
+  ST.ranked = ranked.map(r=>({id:r.p.id, s:r.s, hits:r.hits}));
+  ST.fallback = fallback; ST.idx = 0; save();
+  runLoading();
+};
+
+function runLoading(){
+  show('scrLoading');
+  $('parsedChips').innerHTML = chipsOf(ST.query)
+    .map(c=>`<span class="chip chip-on rounded-full px-2.5 py-1 text-[11px]">${c}</span>`).join('');
+  $('loadSteps').innerHTML = LOAD_STEPS.map((s,i)=>
+    `<div id="ls${i}" class="flex items-center gap-3 text-sm text-haze/40 transition-all duration-300">
+       <span class="w-4 h-4 rounded-full border border-white/20 shrink-0 flex items-center justify-center text-[9px]"></span>
+       <span>${s}</span></div>`).join('');
+  loadTimers.forEach(clearTimeout); loadTimers = [];
+  LOAD_STEPS.forEach((_,i)=>{
+    loadTimers.push(setTimeout(()=>{
+      const el = $('ls'+i); if(!el) return;
+      el.classList.remove('text-haze/40'); el.classList.add('text-white');
+      el.querySelector('span').innerHTML = '✓';
+      el.querySelector('span').className = 'w-4 h-4 rounded-full bg-neon text-ink shrink-0 flex items-center justify-center text-[9px] font-bold';
+    }, 400 + i*680));
+  });
+  loadTimers.push(setTimeout(renderResult, 400 + LOAD_STEPS.length*680 + 250));
+}
+$('btnCancel').onclick = ()=>{ loadTimers.forEach(clearTimeout); show('scrMatch'); };
+
+/* ══════════════════════════════════════════════════
+   7. 屏 3 · 结果
+   ══════════════════════════════════════════════════ */
+let current = null;
+
+function renderResult(){
+  const item = ST.ranked[ST.idx % ST.ranked.length];
+  const p = POOL.find(x=>x.id===item.id);
+  current = p;
+
+  $('fallbackNote').classList.toggle('hidden', !ST.fallback);
+  $('rAvatar').textContent = p.name[0];
+  $('rAvatar').style.background = grad(p);
+  $('rName').textContent = p.name;
+  $('rMbti').textContent = p.mbti + ' 人';
+  $('rOnline').textContent = TIME_LABEL[p.time];
+  $('rGame').innerHTML = `<span class="font-semibold">${p.game}</span> <span class="text-haze mx-1">·</span> ${p.mode}
+      <span class="text-haze mx-1">·</span> <span class="text-haze">${LEVEL_LABEL[p.level]}</span>`;
+  $('rIntro').textContent = '“' + p.intro + '”';
+
+  const rs = reasons(ST.query, p, item.hits);
+  $('rReasons').innerHTML = rs.map(r=>
+    `<div class="flex gap-2.5 text-[13px] leading-relaxed">
+       <span class="text-neon shrink-0 mt-[3px] text-[10px]">◆</span><span class="text-white/80">${r}</span></div>`).join('');
+
+  // 契合度数字滚动
+  const target = display(item.s, ST.idx);
+  let n = Math.max(0, target - 26);
+  $('rScore').innerHTML = n + '<span class="text-lg">%</span>';
+  const tick = setInterval(()=>{
+    n++; $('rScore').innerHTML = n + '<span class="text-lg">%</span>';
+    if(n >= target) clearInterval(tick);
+  }, 26);
+
+  // 语音条
+  $('voiceBars').innerHTML = Array.from({length:22},(_,i)=>
+    `<i class="bar" style="height:${5+Math.round(Math.abs(Math.sin(i*1.3))*13)}px;animation-delay:${i*45}ms;opacity:.75"></i>`).join('');
+  $('voiceIcon').textContent = '▶';
+  $('voiceBars').classList.remove('playing');
+
+  show('scrResult');
+}
+
+// 语音占位（Demo：不播真实音频，只做播放态演示）
+let voiceT;
+$('btnVoice').onclick = ()=>{
+  const bars = $('voiceBars');
+  if(bars.classList.contains('playing')){
+    bars.classList.remove('playing'); $('voiceIcon').textContent='▶'; clearInterval(voiceT); $('voiceTime').textContent='0:08'; return;
+  }
+  bars.classList.add('playing'); $('voiceIcon').textContent='❚❚';
+  let s = 8;
+  $('voiceTime').textContent = '0:0'+s;
+  voiceT = setInterval(()=>{
+    s--; $('voiceTime').textContent = '0:0'+Math.max(s,0);
+    if(s<=0){ clearInterval(voiceT); bars.classList.remove('playing'); $('voiceIcon').textContent='▶'; $('voiceTime').textContent='0:08'; }
+  },1000);
+  toast('Demo 演示：语音为占位效果');
+};
+
+$('btnNext').onclick = ()=>{
+  ST.idx++; save();
+  if(ST.idx % ST.ranked.length === 0) toast('已经看完一轮，从头再来');
+  renderResult();
+};
+$('btnRestart').onclick = ()=>{ show('scrMatch'); renderSessions(); };
+$('btnReport').onclick = ()=> toast('已记录。Demo 中不做真实处理');
+$('btnShare').onclick = ()=>{
+  const item = ST.ranked[ST.idx % ST.ranked.length];
+  const txt = `【今晚的游戏搭子】\n${current.name} × 我\n${current.game} · ${current.mode}\n契合度 ${display(item.s, ST.idx)}%\n— 来自「游戏搭子」，一句话找到今晚的队友`;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('匹配卡文案已复制')).catch(()=>toast('复制失败，请手动截图'));
+  } else toast('已生成分享文案');
+};
+
+/* ══════════════════════════════════════════════════
+   8. 聊天层
+   ══════════════════════════════════════════════════ */
+let chatWith = null;
+
+$('btnHi').onclick = ()=> openChat(current, icebreaker(ST.query, current));
+
+function openChat(p, prefill){
+  chatWith = p;
+  if(!ST.sessions[p.id]) ST.sessions[p.id] = {msgs:[], step:0};
+  $('cAvatar').textContent = p.name[0];
+  $('cAvatar').style.background = grad(p);
+  $('cName').textContent = p.name;
+  $('cSub').textContent = TIME_LABEL[p.time] + ' · ' + p.game;
+  $('chatInput').value = prefill || '';
+  renderChat();
+  $('chatLayer').classList.remove('hidden');
+  requestAnimationFrame(()=> $('chatPanel').classList.remove('translate-y-full'));
+  save();
+}
+function closeChat(){
+  $('chatPanel').classList.add('translate-y-full');
+  setTimeout(()=>$('chatLayer').classList.add('hidden'), 300);
+  renderSessions();
+}
+$('btnChatBack').onclick = closeChat;
+$('chatBackdrop').onclick = closeChat;
+
+function bubble(m){
+  if(m.sys) return `<div class="text-center"><span class="text-[11px] text-haze/60 px-3 py-1 rounded-full chip">${m.text}</span></div>`;
+  if(m.me) return `<div class="flex justify-end"><div class="max-w-[78%] rounded-2xl rounded-br-md px-3.5 py-2.5 text-[14px] leading-relaxed bg-neon text-ink">${m.text}</div></div>`;
+  return `<div class="flex justify-start"><div class="max-w-[78%] rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[14px] leading-relaxed card">${m.text}</div></div>`;
+}
+function renderChat(){
+  const s = ST.sessions[chatWith.id];
+  $('chatBody').innerHTML = s.msgs.length
+    ? s.msgs.map(bubble).join('')
+    : `<div class="text-center text-[12px] text-haze/50 py-8 leading-relaxed">下面这句是系统帮你想的开场白<br>可以直接发，也可以改成你自己的话</div>`;
+  $('chatBody').scrollTop = $('chatBody').scrollHeight;
+}
+function typing(on){
+  const ex = document.getElementById('typingRow');
+  if(on){
+    if(ex) return;
+    $('chatBody').insertAdjacentHTML('beforeend',
+      `<div id="typingRow" class="flex justify-start"><div class="card rounded-2xl rounded-bl-md px-4 py-3 flex gap-1">
+        <i class="bar" style="width:5px;height:5px;border-radius:50%;animation:wv .9s ease-in-out infinite"></i>
+        <i class="bar" style="width:5px;height:5px;border-radius:50%;animation:wv .9s ease-in-out .15s infinite"></i>
+        <i class="bar" style="width:5px;height:5px;border-radius:50%;animation:wv .9s ease-in-out .3s infinite"></i>
+      </div></div>`);
+    $('chatBody').scrollTop = $('chatBody').scrollHeight;
+  } else if(ex) ex.remove();
+}
+
+function send(){
+  const v = $('chatInput').value.trim();
+  if(!v || !chatWith) return;
+  const s = ST.sessions[chatWith.id];
+  s.msgs.push({me:true, text:v});
+  $('chatInput').value = ''; renderChat(); save();
+
+  const p = chatWith;
+  const replies = [ p.c1, p.c2, `行，那就这么定了。房间号 ${p.room}，你直接进就行 🎮` ];
+  const reply = replies[Math.min(s.step, replies.length-1)];
+  s.step++;
+
+  setTimeout(()=>typing(true), 350);
+  setTimeout(()=>{
+    typing(false);
+    s.msgs.push({me:false, text:reply});
+    if(s.step === 3){
+      s.msgs.push({sys:true, text:'已建立联系 · Demo 到此结束'});
+    }
+    renderChat(); save();
+  }, 1250);
+}
+$('btnSend').onclick = send;
+$('chatInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+});
+
+/* 会话列表 */
+function renderSessions(){
+  const ids = Object.keys(ST.sessions).filter(k=>ST.sessions[k].msgs.length);
+  $('sessionsWrap').classList.toggle('hidden', ids.length===0);
+  $('sessionList').innerHTML = ids.map(id=>{
+    const p = POOL.find(x=>x.id===id), s = ST.sessions[id];
+    const last = s.msgs[s.msgs.length-1];
+    return `<button data-id="${id}" class="w-full card rounded-2xl px-3.5 py-3 flex items-center gap-3 text-left active:scale-[.99] transition-transform">
+      <span class="w-9 h-9 rounded-xl flex items-center justify-center font-black text-ink shrink-0" style="background:${grad(p)}">${p.name[0]}</span>
+      <span class="flex-1 min-w-0">
+        <span class="block font-semibold text-sm">${p.name}</span>
+        <span class="block text-[11px] text-haze truncate">${last.text}</span>
+      </span>
+      <span class="text-[10px] text-haze/50 shrink-0">${p.game}</span>
+    </button>`;
+  }).join('');
+  [...$('sessionList').children].forEach(b=>{
+    b.onclick = ()=> openChat(POOL.find(x=>x.id===b.dataset.id), '');
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   9. 启动
+   ══════════════════════════════════════════════════ */
+(function boot(){
+  document.querySelectorAll('textarea').forEach(t=>{
+    t.addEventListener('input', ()=>{ t.style.height='auto'; t.style.height = Math.min(t.scrollHeight, 140)+'px'; });
+  });
+  if(ST.profile){ $('inpProfile').value = ST.profile.raw || ''; show('scrMatch'); renderSessions(); }
+  else show('scrOnboard');
+})();
+</script>
+</body>
+</html>
