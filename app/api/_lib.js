@@ -1,9 +1,10 @@
-/* 游搭 YooDa · 服务端公共库（零依赖，Vercel Node Functions） */
+/* 游搭 YooDa · 服务端公共库（零依赖，Vercel Node Functions）v3 */
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SB_ANON = process.env.SUPABASE_ANON_KEY;
 const DS_KEY = process.env.DEEPSEEK_API_KEY;
 
-/* ── Supabase PostgREST ── */
+/* ── Supabase PostgREST（service role，绕过 RLS）── */
 async function sb(path, opts = {}) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
     ...opts,
@@ -11,16 +12,39 @@ async function sb(path, opts = {}) {
       apikey: SB_KEY,
       Authorization: `Bearer ${SB_KEY}`,
       "Content-Type": "application/json",
-      Prefer: opts.method === "POST" ? "return=representation" : (opts.prefer || ""),
+      Prefer: opts.method === "POST" ? (opts.prefer || "return=representation") : (opts.prefer || ""),
       ...(opts.headers || {}),
     },
   });
-  if (!r.ok) throw new Error(`supabase ${path} ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  if (!r.ok) {
+    const body = (await r.text()).slice(0, 300);
+    const err = new Error(`supabase ${r.status}: ${body}`);
+    err.status = r.status; err.body = body;
+    throw err;
+  }
   const txt = await r.text();
   return txt ? JSON.parse(txt) : null;
 }
 
-/* ── DeepSeek（OpenAI 兼容）── timeoutMs 内必须返回，失败抛错由调用方兜底 */
+/* ── 认证：Bearer JWT → auth 用户；再拿业务 profile ── */
+async function authUser(req) {
+  const h = req.headers["authorization"] || "";
+  const jwt = h.startsWith("Bearer ") ? h.slice(7) : null;
+  if (!jwt) return null;
+  const r = await fetch(`${SB_URL}/auth/v1/user`, {
+    headers: { apikey: SB_ANON, Authorization: `Bearer ${jwt}` },
+  });
+  if (!r.ok) return null;
+  return r.json(); // {id, email, ...}
+}
+async function authProfile(req) {
+  const u = await authUser(req);
+  if (!u) return { user: null, profile: null };
+  const rows = await sb(`profiles?auth_id=eq.${encodeURIComponent(u.id)}&select=*&limit=1`);
+  return { user: u, profile: (rows && rows[0]) || null };
+}
+
+/* ── DeepSeek（OpenAI 兼容）── */
 async function deepseek(messages, { json = true, temperature = 0.2, maxTokens = 1024, timeoutMs = 6500, model = "deepseek-v4-flash" } = {}) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), timeoutMs);
@@ -30,9 +54,7 @@ async function deepseek(messages, { json = true, temperature = 0.2, maxTokens = 
       signal: ctl.signal,
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${DS_KEY}` },
       body: JSON.stringify({
-        model,
-        temperature,
-        max_tokens: maxTokens,
+        model, temperature, max_tokens: maxTokens,
         ...(json ? { response_format: { type: "json_object" } } : {}),
         messages,
       }),
@@ -41,12 +63,10 @@ async function deepseek(messages, { json = true, temperature = 0.2, maxTokens = 
     const d = await r.json();
     const c = d.choices?.[0]?.message?.content || "";
     return json ? JSON.parse(c) : c;
-  } finally {
-    clearTimeout(t);
-  }
+  } finally { clearTimeout(t); }
 }
 
-/* ── 词表与服务端正则兜底解析（与前端保持一致的口径） ── */
+/* ── 词表与正则兜底解析 ── */
 const GAME_WORDS = [
   ["三角洲行动", /三角洲|delta/i], ["无畏契约", /无畏|瓦(?![斯])|valorant/i], ["CS2", /cs2?|反恐/i],
   ["PUBG", /pubg|绝地|吃鸡/i], ["Apex英雄", /apex/i], ["使命召唤：战区", /战区|使命召唤|cod/i],
@@ -68,7 +88,13 @@ function fallbackParse(text) {
   };
 }
 
-/* ── profile 行 → 前端 b 形状需要的字段（前端再补 rgb/abbr）── */
+/* ── 在线状态分档：on(<20s) / warm(<3min) / off ── */
+function statusOf(lastSeen) {
+  const dt = Date.now() - new Date(lastSeen || 0).getTime();
+  return dt < 20000 ? "on" : dt < 180000 ? "warm" : "off";
+}
+
+/* ── profile 行 → 前端展示形状 ── */
 function pubProfile(p) {
   const g0 = (p.games && p.games[0]) || {};
   return {
@@ -76,8 +102,16 @@ function pubProfile(p) {
     games: p.games || [], game: g0.name || "三角洲行动", role: (g0.roles || [])[0] || "自由人",
     rank: g0.rank || "—", play_style: p.play_style || "稳健",
     time: (p.active_hours || [])[0] || "晚间", mbti: p.mbti, intro: p.intro || "",
-    is_bot: p.is_bot, bot_meta: p.bot_meta || null,
+    status: statusOf(p.last_seen_at),
   };
+}
+
+/* ── 拉黑集合（双向）── */
+async function blockedSet(pid) {
+  const rows = await sb(`blocks?or=(blocker.eq.${pid},blocked.eq.${pid})&select=blocker,blocked`);
+  const s = new Set();
+  (rows || []).forEach(b => { s.add(b.blocker === pid ? b.blocked : b.blocker); });
+  return s;
 }
 
 function json(res, code, obj) {
@@ -93,4 +127,4 @@ async function readBody(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
 }
 
-module.exports = { sb, deepseek, fallbackParse, pubProfile, json, readBody };
+module.exports = { sb, deepseek, fallbackParse, pubProfile, statusOf, blockedSet, authUser, authProfile, json, readBody };

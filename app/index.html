@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+<script>if(location.search.indexOf("desktop")<0&&Math.min(screen.width,innerWidth||1e9)<768){location.replace("/m/"+location.hash)}</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>游搭 · 一句话找到今晚的搭子</title>
@@ -903,8 +904,7 @@ function show(id){
   if(G()&&!RM)G().from('#'+id,{opacity:0,y:14,duration:.45,ease:'power2.out'});
 }
 let tt;function toast(m){const e=$('toast');e.textContent=m;e.style.opacity=1;clearTimeout(tt);tt=setTimeout(()=>e.style.opacity=0,2000)}
-let on=1248;setInterval(()=>{on+=Math.floor(Math.random()*7)-3;on=Math.max(1180,Math.min(1400,on));
-  $('onlineN').textContent=on.toLocaleString()},3000);
+/* 在线人数为真实数字，由 js/live.js 从 /api/stats 与收件箱心跳取得 */
 
 /* ══════════════════════════ V1 ══════════════════════════ */
 const INSERT=[
