@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>游戏搭子 Demo 开发计划 v1</title>
+<title>游戏搭子 Demo 开发计划</title>
 </head>
 <body>
 <style>
@@ -151,7 +151,7 @@
 
 <header class="doc">
   <div class="kicker">VibeCoder Project · Build Spec</div>
-  <h1>「游戏搭子」现场交互 Demo<br>开发计划 v1</h1>
+  <h1>「游戏搭子」现场交互 Demo<br>开发计划 v1.1</h1>
   <p class="subtitle">自然语言找搭子 → 秒级匹配 → 站内开聊。一份可以直接喂给 AI 编码代理开工的完整规格，覆盖产品流程、架构、数据模型、API、LLM 调用与现场演示兜底。</p>
   <div class="meta">
     <span><b>日期</b> 2026-07-25</span>
@@ -190,7 +190,7 @@
     <tr><th>维度</th><th>决定</th></tr>
     <tr><td>形态</td><td>Web（手机浏览器打开即用，无需装 App、无需注册）</td></tr>
     <tr><td>核心闭环</td><td>Onboarding 建画像（可跳过）→ 自然语言输入需求 → LLM 解析 + 匹配 → 结果卡片（含「为什么是 TA」）→ 站内 IM 开聊</td></tr>
-    <tr><td>技术栈</td><td>Next.js 15 + TypeScript + Tailwind · Vercel · Supabase（Postgres + Realtime）· Claude API</td></tr>
+    <tr><td>技术栈</td><td>Next.js 15 + TypeScript + Tailwind · GSAP（动效编排）· Vercel · Supabase（Postgres + Realtime）· Claude API</td></tr>
     <tr><td>演示高潮</td><td>两台真机现场互配成功 + 匹配理由卡片瞬间点亮</td></tr>
     <tr><td>不做</td><td>陪玩交易、支付、实名审查、真实游戏账号 OAuth（愿景页展示即可）</td></tr>
   </table></div>
@@ -233,7 +233,7 @@
 
 <section id="s4">
   <h2><span class="no">§4</span>界面与交互规格</h2>
-  <p class="lede">共 3 个核心界面 + 1 个愿景页，移动端优先（375px 起），桌面居中卡片布局。深色游戏夜场风格，主色自定（避免紫色渐变烂大街配色）。全站中文。</p>
+  <p class="lede">共 3 个核心界面 + 1 个愿景页，移动端优先（375px 起），桌面居中卡片布局。深色游戏夜场风格，主色自定（避免紫色渐变烂大街配色）。全站中文。全站动效由 GSAP 统一编排，逐场景规格见本节末尾「动效规格」。</p>
 
   <h3>S1 · Onboarding <code>/onboarding</code></h3>
   <ul>
@@ -245,7 +245,7 @@
   <h3>S2 · 主界面（匹配）<code>/</code></h3>
   <ul>
     <li>结构极简：一句 slogan + 一个多行输入框（placeholder 轮播三类示例文案，对应三类用户状态）+ 一个大按钮「开始匹配」。</li>
-    <li>点击后进入<strong>匹配动画态</strong>：流式展示两步 —— ①「理解你的需求…」逐条点亮解析出的标签芯片；②「正在为你翻牌…」雷达扫描动画。全程 ≤ 6 秒（含 LLM 延迟），超时走兜底（§12）。</li>
+    <li>点击后进入<strong>匹配动画态</strong>：流式展示两步 —— ①「理解你的需求…」逐条点亮解析出的标签芯片；②「正在为你翻牌…」雷达扫描动画。GSAP 时间轴编排（见动效规格 A2/A3），全程 ≤ 6 秒（含 LLM 延迟），超时走兜底（§12）。</li>
     <li><strong>结果卡片</strong>：对方昵称、标签芯片（游戏/位置/风格/声音/时段）、在线状态点、以及重点样式的「为什么是 TA」两行理由。按钮：「开聊」→ S3；「换一个」→ 重新匹配（同一请求最多换 3 次，每次排除已出现的人）。</li>
     <li>匹配不到完全符合的人时<strong>永不返回空态</strong>：降级为最接近的人选，理由里诚实说明（「没找到常玩三角洲的女生，TA 是最接近的：…」）。</li>
     <li>底部一行小字入口：「未来：绑定 Steam / 游戏账号，战绩自动变标签 →」打开愿景页弹层。</li>
@@ -263,6 +263,22 @@
   <h3>S4 · 愿景弹层</h3>
   <ul>
     <li>三卡片：①账号绑定（Steam 库存 · 时长 · KDA 自动成为可信标签）②认证真人 & 安全（举报/拉黑）③Pro 订阅 ~10 元/月（性别/声音筛选 · 无限次匹配）。纯静态展示，按钮点击显示「Coming soon」。</li>
+  </ul>
+
+  <h3>动效规格（GSAP 编排）</h3>
+  <p>动效是本 demo 的第二主角：匹配序列的「仪式感」直接决定 §3 aha 时刻的成色。统一使用 <strong>GSAP 3.13+</strong>（自 2025 起完全免费、含全部官方插件）+ 官方 React 集成 <code>@gsap/react</code> 的 <code>useGSAP</code> hook（自动清理，StrictMode 安全）。逐场景编排如下：</p>
+  <div class="tablewrap"><table>
+    <tr><th>#</th><th>场景</th><th>编排</th><th>技术点</th></tr>
+    <tr><td>A1</td><td>S1 标签点选</td><td>芯片点选瞬间 scale 1→1.15→1 微弹，选中态描边亮起；分组区块进场时轻微错峰上浮</td><td><code>gsap.to</code>，微交互 0.18s</td></tr>
+    <tr><td>A2</td><td>S2 需求解析</td><td>点击匹配后输入框上浮收纳至顶部；解析出的标签芯片<strong>随 SSE 事件逐个弹入</strong>（scale 0.6→1 + y 8→0，<code>back.out(1.7)</code>，相邻错峰 ≥80ms）</td><td>事件驱动 <code>gsap.from</code>——动画跟数据走，不做假等待</td></tr>
+    <tr><td>A3</td><td>S2 翻牌（aha）</td><td>雷达扫描线 360° 循环（<code>repeat:-1</code>）→ 收到 <code>matched</code> 事件后停针、扫描圈收缩，卡片 3D 翻转入场（rotationY -90→0，<code>transformPerspective:800</code>，0.6s <code>power4.out</code>）+ 阴影抬升</td><td>主 timeline 串联；翻转全序列 ≤1.2s</td></tr>
+    <tr><td>A4</td><td>S2 匹配理由</td><td>「为什么是 TA」文案按行浮现（y 12→0 + opacity，行间 stagger 0.12s）——把全场最重要的两行字「念」出来</td><td><code>SplitText</code>（已免费）按行切分</td></tr>
+    <tr><td>A5</td><td>S3 聊天</td><td>新气泡从发送侧入场（y 16 + scale .92→1）；「对方正在输入」三点循环 timeline；快捷短语条首次进入时 slide-in</td><td>只动画新增消息，禁止整列表重排</td></tr>
+    <tr><td>A6</td><td>S4 愿景弹层</td><td>遮罩 fade + 三卡片 y 24 依次上浮（stagger 0.08s）</td><td>一条 timeline</td></tr>
+  </table></div>
+  <ul>
+    <li><strong>性能红线</strong>：只动 <code>transform</code> / <code>opacity</code>（保移动端 60fps）；循环动画随组件卸载清理（useGSAP 托管）；<code>prefers-reduced-motion</code> 用户直接呈现终态（<code>gsap.matchMedia</code>）。</li>
+    <li><strong>节奏基准</strong>：微交互 0.15–0.25s、入场 0.4–0.6s；动效为演示节奏服务，不得拖慢 §11 的 6 秒匹配红线——动画永远等数据，数据永远不等动画。</li>
   </ul>
 </section>
 
@@ -286,6 +302,7 @@
     <li><strong>状态必须落 Supabase（Postgres），严禁内存存储</strong>。Vercel Serverless 每次调用可能是不同实例，进程内 <code>Map</code>/全局变量在本地 dev 能跑、上线必炸 —— 这是本项目最大的隐形坑，见 §14 约束 C1。</li>
     <li><strong>聊天用 Supabase Realtime（Postgres CDC 订阅），不要自建 WebSocket</strong>：Vercel Serverless 不支持长连接 WebSocket 服务端。保留轮询降级开关。</li>
     <li><strong>LLM 用 Anthropic 官方 TS SDK <code>@anthropic-ai/sdk</code></strong>，只在服务端调用（API Key 绝不进前端）。模型与参数规格见 §8。</li>
+    <li><strong>动效用 GSAP（<code>gsap</code> + <code>@gsap/react</code>）而非 CSS animation / Framer Motion</strong>：匹配序列是一段需要与 SSE 数据流联动的多步编排（收纳→芯片弹入→雷达→翻牌→理由逐行），timeline 的串联、中断与跳帧能力是 CSS 做不到的；GSAP 3.13 起全插件免费（含 SplitText）。动画组件必须 <code>"use client"</code>，规格与红线见 §4 动效规格。</li>
     <li><strong>无鉴权体系</strong>：昵称 + localStorage UUID 即身份（demo 专用；正式版换 Supabase Auth）。</li>
   </ul>
   <div class="callout warn"><span class="tag">网络警告</span><code>*.vercel.app</code> 域名在国内直连不稳定。演示机与参与真机务必走热点/代理（§12-R3）；若要开放观众扫码，先在会场实测（§13-Q2）。</div>
@@ -427,10 +444,10 @@ const resp = await client.messages.create({
     <tr><th>里程碑</th><th>时长</th><th>内容</th><th>建议分工</th></tr>
     <tr><td><b>M0</b> 环境</td><td>30m</td><td>Next.js 脚手架进仓库 develop 分支；建 Supabase 项目、跑 §6 DDL；Vercel 关联仓库、配环境变量；Claude API key 冒烟测试</td><td>1 人（其余人此时写 §9 人设 + §13 答案）</td></tr>
     <tr><td><b>M1</b> 画像</td><td>60m</td><td>S1 Onboarding 全流程 + /api/profile + localStorage 会话 + seed.sql 灌库</td><td>前端手 ×1</td></tr>
-    <tr><td><b>M2</b> 匹配</td><td>90m</td><td>/api/match 三段管线（解析→预筛→重排）+ S2 界面（输入、流式标签、翻牌卡片、换一个）</td><td>主力 + AI 编码代理</td></tr>
+    <tr><td><b>M2</b> 匹配</td><td>90m</td><td>/api/match 三段管线（解析→预筛→重排）+ S2 界面与 GSAP 匹配序列（A2 芯片流式弹入 → A3 雷达翻牌 → A4 理由逐行，§4）</td><td>主力 + AI 编码代理</td></tr>
     <tr><td><b>M3</b> 聊天</td><td>90m</td><td>S3 界面 + Realtime 订阅 + 轮询降级 + bot 自动回复 + 我的搭子列表</td><td>第 2 人 + AI 编码代理</td></tr>
     <tr><td><b>M4</b> 合练</td><td>60m</td><td>部署生产、真机联调、按 §3 脚本彩排 2 遍、录一版兜底屏录、愿景页 S4</td><td>全员</td></tr>
-    <tr><td><b>M5</b> 加分项</td><td>视余量</td><td>Pro 假弹窗、匹配音效、观众扫码入口、深色主题打磨</td><td>有余力再做</td></tr>
+    <tr><td><b>M5</b> 加分项</td><td>视余量</td><td>Pro 假弹窗、匹配音效（与 A3 翻牌对拍）、观众扫码入口、动效与主题细节打磨</td><td>有余力再做</td></tr>
   </table></div>
 </section>
 
@@ -507,6 +524,7 @@ const resp = await client.messages.create({
     <li><strong>C3</strong>：Opus 4.8 不传 temperature/top_p/top_k/budget_tokens；结构化输出用 <code>output_config.format</code>。</li>
     <li><strong>C4</strong>：全部 UI 文案中文；移动端 375px 优先；匹配全链路 ≤ 6s、超时必须优雅降级（R2）。</li>
     <li><strong>C5</strong>：不实现支付、陪玩交易、真实游戏 OAuth（愿景页静态展示除外）。</li>
+    <li><strong>C6</strong>：动效统一走 GSAP（<code>gsap</code> + <code>@gsap/react</code>，用 <code>useGSAP</code> 管理生命周期），按 §4 动效规格逐条实现（A1–A6）；只动 transform/opacity；动画由数据事件驱动、不得阻塞 SSE 处理或用户输入；尊重 <code>prefers-reduced-motion</code>。</li>
   </ul>
   <h3>环境变量清单（<code>.env.example</code>）</h3>
   <div class="tablewrap"><table>
@@ -522,7 +540,7 @@ const resp = await client.messages.create({
 </section>
 
 <footer>
-  VibeCoder Project · 游戏搭子 Demo 计划 v1 · 2026-07-25 · 基于组内会议纪要生成 · 答完 §13 Q1–Q4 后更新为 v2
+  VibeCoder Project · 游戏搭子 Demo 计划 v1.1（v1 + GSAP 动效规格）· 2026-07-25 · 基于组内会议纪要生成 · 答完 §13 Q1–Q4 后更新为 v2
 </footer>
 
 </div>
