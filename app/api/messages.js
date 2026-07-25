@@ -10,8 +10,9 @@ async function memberMatch(matchId, pid) {
 
 module.exports = async (req, res) => {
   try {
-    const { profile: me } = await authProfile(req);
-    if (!me) return json(res, 401, { error: "请先登录" });
+    const { user, profile: me } = await authProfile(req);
+    if (!user) return json(res, 401, { error: "AUTH" });
+    if (!me) return json(res, 403, { error: "NO_PROFILE" });
 
     if (req.method === "GET") {
       const u = new URL(req.url, "http://x");

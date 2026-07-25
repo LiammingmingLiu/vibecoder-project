@@ -8,8 +8,9 @@ const SYS = `你是游搭（游戏搭子匹配平台）的匹配引擎。输入�
 module.exports = async (req, res) => {
   if (req.method !== "POST") return json(res, 405, { error: "POST only" });
   try {
-    const { profile: me } = await authProfile(req);
-    if (!me) return json(res, 401, { error: "请先登录" });
+    const { user, profile: me } = await authProfile(req);
+    if (!user) return json(res, 401, { error: "AUTH" });
+    if (!me) return json(res, 403, { error: "NO_PROFILE" });
     const { text, excludeIds = [] } = await readBody(req);
     if (!text || !text.trim()) return json(res, 400, { error: "需求不能为空" });
 

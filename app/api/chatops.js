@@ -4,8 +4,9 @@ const { sb, authProfile, json, readBody } = require("./_lib");
 module.exports = async (req, res) => {
   if (req.method !== "POST") return json(res, 405, { error: "POST only" });
   try {
-    const { profile: me } = await authProfile(req);
-    if (!me) return json(res, 401, { error: "请先登录" });
+    const { user, profile: me } = await authProfile(req);
+    if (!user) return json(res, 401, { error: "AUTH" });
+    if (!me) return json(res, 403, { error: "NO_PROFILE" });
     const { op, matchId, lastId, targetId } = await readBody(req);
 
     if (op === "read" || op === "delete") {

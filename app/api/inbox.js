@@ -3,8 +3,9 @@ const { sb, authProfile, pubProfile, statusOf, json } = require("./_lib");
 
 module.exports = async (req, res) => {
   try {
-    const { profile: me } = await authProfile(req);
-    if (!me) return json(res, 401, { error: "请先登录" });
+    const { user, profile: me } = await authProfile(req);
+    if (!user) return json(res, 401, { error: "AUTH" });
+    if (!me) return json(res, 403, { error: "NO_PROFILE" });
     const pid = me.id;
     const u = new URL(req.url, "http://x");
     const afterMsgId = parseInt(u.searchParams.get("afterMsgId") || "0", 10);

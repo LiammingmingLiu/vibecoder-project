@@ -32,14 +32,29 @@
       return r.json().catch(function () { return {}; }).then(function (j) { j.__status = r.status; return j; });
     }, function (e) { clearTimeout(t); throw e; });
   }
+  var authBad = false, lastAuthPop = 0;
+  function authExpired(fromUser) {
+    authBad = true; updAcct();
+    var nowT = Date.now();
+    if (fromUser || nowT - lastAuthPop > 30000) {
+      lastAuthPop = nowT;
+      openAuth(S.auth ? "登录状态过期了，重新登录一下" : "请先登录 / 注册一个游搭账号", true);
+    }
+  }
   function api(path, opts) {
     opts = opts || {};
+    var bg = !!opts.bg;
     return ensureToken().then(function (tk) {
       if (tk) opts.headers = Object.assign({}, opts.headers, { Authorization: "Bearer " + tk });
       return rawFetch(path, opts);
     }).then(function (j) {
-      if (j.__status === 401) { openAuth("请先登录 / 注册一个游搭账号"); throw new Error("401"); }
+      if (j.__status === 401) { if (!bg) authExpired(true); else authExpired(false); throw new Error("401"); }
+      if (j.__status === 403 && j.error === "NO_PROFILE") {
+        if (!bg) { show(isMobilePage ? "s1" : "v1"); toast("先用一句话介绍下自己吧"); }
+        throw new Error("NO_PROFILE");
+      }
       if (j.__status >= 400) throw new Error(j.error || ("HTTP " + j.__status));
+      authBad = false;
       return j;
     });
   }
@@ -59,7 +74,8 @@
     }).then(function (j) {
       refreshing = null;
       if (j.access_token) { saveAuth(j); return j.access_token; }
-      saveAuth(null); return null;
+      S.lastEmail = (S.auth && S.auth.email) || S.lastEmail || "";
+      saveAuth(null); updAcct(); return null;
     }).catch(function () { refreshing = null; return S.auth && S.auth.at; });
     return refreshing;
   }
@@ -90,8 +106,9 @@
   acct.id = "ydAcct"; acct.textContent = "登录 / 注册";
   document.body.appendChild(acct);
   acct.onclick = function () { openAuth(); };
-  function openAuth(msg) {
-    var logged = !!S.auth;
+  function openAuth(msg, relogin) {
+    var logged = !!S.auth && !relogin;
+    if (relogin && $("ydE")) { $("ydE").value = (S.auth && S.auth.email) || S.lastEmail || $("ydE").value; }
     $("ydT").textContent = logged ? "我的账号" : "登录游搭";
     $("ydMsg").textContent = msg || "";
     $("ydE").style.display = $("ydP").style.display = logged ? "none" : "block";
@@ -107,6 +124,7 @@
     if (!em || !pw) { $("ydMsg").textContent = "邮箱和密码都要填"; return; }
     $("ydMsg").textContent = "请稍候…";
     authCall(kind, em, pw).then(function () {
+      authBad = false; lastAuthPop = 0;
       $("ydMsg").textContent = "";
       av.classList.remove("on");
       return hydrateMe();
@@ -118,12 +136,16 @@
     try { localStorage.removeItem(LS); } catch (e) {}
     location.reload();
   };
-  function updAcct() { acct.textContent = S.auth ? ((S.auth.email || "账号").split("@")[0]) : "登录 / 注册"; }
+  function updAcct() {
+    acct.textContent = authBad ? "重新登录" : (S.auth ? ((S.auth.email || "账号").split("@")[0]) : "登录 / 注册");
+    acct.style.color = authBad ? "#ff7d90" : "#9fb2ba";
+    acct.style.borderColor = authBad ? "rgba(255,125,144,.5)" : "rgba(255,255,255,.14)";
+  }
 
   /* 登录后拉取我的画像并恢复身份 */
   function hydrateMe() {
     updAcct();
-    return api("/api/profile").then(function (r) {
+    return api("/api/profile", { bg: true }).then(function (r) {
       if (r.profile) {
         S.pid = r.profile.id;
         S.me = { nick: r.profile.nickname, raw: r.profile.rawIntro || "" };
@@ -318,7 +340,7 @@
     S.ss[id].k = 99; /* 永不触发页面自带的剧本回复 */
     var r = origOpen(id);
     var mid = S.pm[id];
-    if (S.lm[mid]) api("/api/chatops", { method: "POST", body: { op: "read", matchId: mid, lastId: S.lm[mid] } }).catch(function () {});
+    if (S.lm[mid]) api("/api/chatops", { method: "POST", bg: true, body: { op: "read", matchId: mid, lastId: S.lm[mid] } }).catch(function () {});
     var im = INBOX.matches.find(function (x) { return x.matchId === mid; });
     if (im) im.unread = false;
     renderList();
@@ -365,8 +387,8 @@
 
   /* ══════════ 收件箱轮询：心跳 + 列表 + 增量消息 ══════════ */
   function tick() {
-    if (!ADAPTER.on || !S.auth || !S.pid) return;
-    api("/api/inbox?afterMsgId=" + S.seen, { timeout: 9000 }).then(function (r) {
+    if (!ADAPTER.on || !S.auth || !S.pid || authBad) return;
+    api("/api/inbox?afterMsgId=" + S.seen, { timeout: 9000, bg: true }).then(function (r) {
       ADAPTER.online = r.online || 0;
       setCounter(r.online);
       var known = {};
@@ -386,7 +408,7 @@
         S.ss[b.id].m.push({ me: 0, t: msg.content });
         if (now && now.id === b.id && (($("chatView") && $("chatView").classList.contains("on")) || isMobilePage)) {
           try { draw(); } catch (e) {}
-          api("/api/chatops", { method: "POST", body: { op: "read", matchId: msg.match_id, lastId: msg.id } }).catch(function () {});
+          api("/api/chatops", { method: "POST", bg: true, body: { op: "read", matchId: msg.match_id, lastId: msg.id } }).catch(function () {});
         } else {
           toast(b.n + "：" + msg.content.slice(0, 18));
           flashTitle();
