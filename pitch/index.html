@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>游搭 · PRESS ANY KEY</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #07090d;
+    --panel: #0e141b;
+    --panel-2: #121a23;
+    --line: #1e2a35;
+    --ink: #e9f1f3;
+    --dim: #8b9ca4;
+    --faint: #55656d;
+    --cyan: #36e2c8;
+    --cyan-deep: #0e8f7d;
+    --amber: #ffb454;
+    --red: #ff5f56;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --disp: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--disp); overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* ambient layers */
+  .bg-grid, .bg-scan {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(54,226,200,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(54,226,200,.045) 1px, transparent 1px);
+    background-size: 72px 72px;
+    mask-image: radial-gradient(ellipse 90% 80% at 50% 45%, #000 30%, transparent 100%);
+  }
+  .bg-scan {
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+    opacity: .35; mix-blend-mode: multiply;
+  }
+
+  /* ============ HUD chrome ============ */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; font-family: var(--mono); font-size: 11px;
+    letter-spacing: .18em; color: var(--faint); text-transform: uppercase;
+  }
+  #hud .brand { color: var(--cyan); font-weight: 700; }
+  #hud .act { color: var(--dim); }
+  #progress {
+    position: fixed; top: 0; left: 0; height: 2px; width: 0%;
+    background: linear-gradient(90deg, var(--cyan-deep), var(--cyan));
+    z-index: 60; box-shadow: 0 0 12px rgba(54,226,200,.8);
+  }
+  #keyhint {
+    position: fixed; bottom: 14px; right: 22px; z-index: 50;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+    color: var(--faint);
+  }
+  #keyhint b { color: var(--dim); font-weight: 600; }
+  #blackout {
+    position: fixed; inset: 0; background: #000; z-index: 200;
+    opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  #blackout.on { opacity: 1; pointer-events: all; }
+
+  /* ============ slides ============ */
+  .slide {
+    position: fixed; inset: 0; z-index: 1;
+    display: none; align-items: center; justify-content: center;
+    padding: 72px 6vw;
+  }
+  .slide.active { display: flex; }
+  .inner { width: min(1180px, 92vw); position: relative; z-index: 2; }
+  .center { text-align: center; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .34em;
+    color: var(--cyan); text-transform: uppercase; margin-bottom: 22px;
+  }
+  .eyebrow .n { color: var(--faint); }
+  h1.mega {
+    font-size: clamp(44px, 7.4vw, 104px); line-height: 1.14;
+    font-weight: 900; margin: 0; letter-spacing: .01em; text-wrap: balance;
+  }
+  h1.mega .hl { color: var(--cyan); }
+  h1.mega .warm { color: var(--amber); }
+  .sub {
+    color: var(--dim); font-size: clamp(16px, 1.6vw, 21px);
+    margin-top: 26px; line-height: 1.8;
+  }
+  .kbd {
+    font-family: var(--mono); border: 1px solid var(--line); border-bottom-width: 2px;
+    border-radius: 5px; padding: 0 6px; color: var(--dim); font-size: .85em;
+  }
+
+  /* S0 standby */
+  #wordmark {
+    font-size: clamp(96px, 19vw, 260px); font-weight: 900; line-height: 1;
+    letter-spacing: .04em;
+    background: linear-gradient(180deg, #eafffb 20%, var(--cyan) 70%, var(--cyan-deep));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 34px rgba(54,226,200,.35));
+  }
+  .press {
+    font-family: var(--mono); letter-spacing: .5em; color: var(--dim);
+    margin-top: 40px; font-size: clamp(12px, 1.4vw, 16px); text-indent: .5em;
+  }
+  .marquee {
+    position: fixed; bottom: 0; left: 0; right: 0; padding: 12px 0;
+    border-top: 1px solid var(--line); background: rgba(7,9,13,.7);
+    overflow: hidden; white-space: nowrap; z-index: 40;
+    font-family: var(--mono); font-size: 12px; color: var(--faint); letter-spacing: .22em;
+  }
+  .marquee > div { display: inline-block; padding-left: 100%; animation: mq 26s linear infinite; }
+  @keyframes mq { to { transform: translateX(-100%); } }
+
+  /* S1 night cards */
+  .clock {
+    position: absolute; top: -34px; right: 0; font-family: var(--mono);
+    font-size: 15px; color: var(--amber); letter-spacing: .2em;
+  }
+  .night-stack { display: grid; gap: 18px; grid-template-columns: repeat(3, 1fr); margin-top: 40px; }
+  .night-card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 22px; min-height: 190px; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .night-card .app {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .22em;
+    color: var(--faint); text-transform: uppercase; margin-bottom: 14px;
+  }
+  .night-card .big { font-size: 19px; font-weight: 700; line-height: 1.55; }
+  .night-card .mut { color: var(--dim); font-size: 14.5px; margin-top: 10px; line-height: 1.7; }
+  .night-card .status { color: var(--red); }
+  .bubble-line { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+  .mini-bubble {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    border-radius: 9px; padding: 5px 11px; font-size: 13.5px;
+  }
+  .read { font-size: 11px; color: var(--faint); font-family: var(--mono); }
+
+  /* S3 loading */
+  .loadbar-wrap { margin: 44px 0 8px; }
+  .loadbar {
+    height: 14px; border: 1px solid var(--line); border-radius: 99px;
+    background: var(--panel); overflow: hidden; position: relative;
+  }
+  .loadbar .fill {
+    height: 100%; width: 0%;
+    background: repeating-linear-gradient(-45deg, var(--cyan) 0 10px, var(--cyan-deep) 10px 20px);
+    box-shadow: 0 0 18px rgba(54,226,200,.5);
+  }
+  .loadbar-meta {
+    display: flex; justify-content: space-between; margin-top: 10px;
+    font-family: var(--mono); font-size: 11.5px; color: var(--faint); letter-spacing: .18em;
+  }
+  .tips { margin-top: 34px; display: grid; gap: 14px; }
+  .tip {
+    visibility: hidden; display: grid; grid-template-columns: 84px 1fr; gap: 16px;
+    align-items: baseline; border: 1px solid var(--line); border-radius: 12px;
+    background: rgba(14,20,27,.75); padding: 16px 20px;
+  }
+  .tip .tag { font-family: var(--mono); font-size: 11px; color: var(--amber); letter-spacing: .2em; }
+  .tip .txt { font-size: clamp(15px, 1.55vw, 19px); line-height: 1.7; }
+  .tip .txt b { color: var(--cyan); font-size: 1.18em; font-variant-numeric: tabular-nums; }
+  .tip .src { display: block; font-size: 11.5px; color: var(--faint); font-family: var(--mono); margin-top: 6px; letter-spacing: .06em; }
+  .tip.key { border-color: rgba(255,180,84,.4); }
+
+  /* S5 typing */
+  .phone {
+    width: min(560px, 86vw); margin: 36px auto 0; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 20px; padding: 26px;
+    text-align: left; box-shadow: 0 30px 80px rgba(0,0,0,.55);
+  }
+  .phone .bar {
+    font-family: var(--mono); font-size: 10px; color: var(--faint);
+    letter-spacing: .25em; margin-bottom: 16px; text-transform: uppercase;
+  }
+  .inputbox {
+    border: 1px solid var(--cyan-deep); border-radius: 14px; background: #0a1016;
+    padding: 18px; min-height: 108px; font-size: 18px; line-height: 1.8;
+  }
+  .caret { display: inline-block; width: 2px; height: 1.1em; background: var(--cyan); vertical-align: -0.18em; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+  .chip {
+    visibility: hidden; font-size: 13.5px; padding: 5px 13px; border-radius: 99px;
+    border: 1px solid var(--cyan-deep); color: var(--cyan); background: rgba(54,226,200,.06);
+    font-weight: 600;
+  }
+  .go {
+    margin-top: 20px; text-align: center; background: linear-gradient(90deg, var(--cyan-deep), var(--cyan));
+    color: #04211c; font-weight: 800; padding: 13px; border-radius: 12px; font-size: 16px;
+    letter-spacing: .1em;
+  }
+
+  /* S6 card flip */
+  .matchwrap { perspective: 1000px; width: min(460px, 84vw); margin: 30px auto 0; }
+  .match-card {
+    background: linear-gradient(165deg, #101a22, #0b1218 60%);
+    border: 1px solid rgba(54,226,200,.35); border-radius: 22px; padding: 30px;
+    text-align: left; box-shadow: 0 40px 90px rgba(0,0,0,.6), 0 0 40px rgba(54,226,200,.12);
+  }
+  .match-card .name { font-size: 27px; font-weight: 900; }
+  .match-card .online {
+    display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--cyan); margin-right: 9px; box-shadow: 0 0 10px var(--cyan);
+  }
+  .match-card .chips { margin-top: 14px; }
+  .match-card .chip { visibility: visible; }
+  .reason {
+    margin-top: 20px; border-left: 3px solid var(--amber); background: rgba(255,180,84,.07);
+    padding: 14px 16px; border-radius: 0 12px 12px 0; font-size: 16.5px; line-height: 1.75;
+  }
+  .reason .lab { font-family: var(--mono); font-size: 10.5px; letter-spacing: .24em; color: var(--amber); display: block; margin-bottom: 7px; }
+
+  /* S7 chat */
+  .chatbox { width: min(520px, 86vw); margin: 34px auto 0; display: grid; gap: 12px; }
+  .msg { visibility: hidden; display: flex; }
+  .msg.right { justify-content: flex-end; }
+  .msg .b {
+    max-width: 78%; padding: 12px 17px; border-radius: 16px; font-size: 17px; line-height: 1.6;
+    background: var(--panel-2); border: 1px solid var(--line); text-align: left;
+  }
+  .msg.right .b { background: rgba(54,226,200,.13); border-color: var(--cyan-deep); }
+  .handoff {
+    visibility: hidden; margin-top: 26px; display: flex; gap: 14px; justify-content: center;
+    align-items: center; font-size: 16px; color: var(--dim);
+  }
+  .handoff .pillbox {
+    border: 1px dashed var(--faint); padding: 8px 18px; border-radius: 99px; font-weight: 700; color: var(--ink);
+  }
+
+  /* S8 demo parking */
+  .swords { font-size: clamp(60px, 10vw, 120px); }
+
+  /* S9 achievement */
+  .ach {
+    width: min(640px, 90vw); margin: 0 auto; background: linear-gradient(160deg, #16202a, #0d141b);
+    border: 1px solid var(--amber); border-radius: 20px; padding: 34px 38px;
+    display: flex; gap: 24px; align-items: center; text-align: left;
+    box-shadow: 0 0 60px rgba(255,180,84,.25), 0 40px 90px rgba(0,0,0,.6);
+  }
+  .ach .cup { font-size: 64px; }
+  .ach .t1 { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--amber); text-transform: uppercase; }
+  .ach .t2 { font-size: clamp(22px, 3vw, 34px); font-weight: 900; margin-top: 8px; }
+  .ach .t3 { color: var(--dim); margin-top: 8px; font-size: 15px; }
+
+  /* S10 patch notes */
+  .patch { width: min(760px, 92vw); margin: 34px auto 0; text-align: left; display: grid; gap: 13px; }
+  .pn {
+    visibility: hidden; display: grid; grid-template-columns: 88px 1fr; gap: 18px; align-items: baseline;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px;
+  }
+  .pn .k { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; }
+  .pn .k.add { color: var(--cyan); }
+  .pn .k.pro { color: var(--amber); }
+  .pn .v { font-size: clamp(15px, 1.6vw, 18.5px); line-height: 1.65; }
+  .pn .v small { color: var(--dim); display: block; margin-top: 4px; font-size: 13.5px; }
+
+  /* S11 boss */
+  .boss-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 44px; align-items: center; margin-top: 30px; }
+  .qr-slot {
+    aspect-ratio: 1; border-radius: 20px; border: 2px dashed var(--faint);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: #fff0; color: var(--faint); font-family: var(--mono); font-size: 12px;
+    letter-spacing: .2em; text-align: center; line-height: 2; overflow: hidden;
+  }
+  .qr-slot img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .statbig { text-align: left; display: grid; gap: 26px; }
+  .stat .lab { font-family: var(--mono); font-size: 12px; color: var(--dim); letter-spacing: .3em; text-transform: uppercase; }
+  .stat .num {
+    font-size: clamp(56px, 7.5vw, 96px); font-weight: 900; line-height: 1.05;
+    font-variant-numeric: tabular-nums; color: var(--cyan);
+    text-shadow: 0 0 30px rgba(54,226,200,.4);
+  }
+  .stat .num.warm { color: var(--amber); text-shadow: 0 0 30px rgba(255,180,84,.35); }
+  #ticker {
+    height: 58px; overflow: hidden; border-top: 1px solid var(--line); padding-top: 12px;
+    font-size: 15px; color: var(--dim);
+  }
+  #ticker div { line-height: 1.9; }
+  #ticker b { color: var(--ink); }
+  .radar {
+    position: absolute; inset: -8vh -8vw; z-index: 0; pointer-events: none; opacity: .16;
+    background: conic-gradient(from 0deg, transparent 0 84%, var(--cyan) 97%, transparent 100%);
+    border-radius: 50%; filter: blur(2px);
+  }
+
+  /* S12 ending */
+  .credits {
+    height: 150px; overflow: hidden; margin-top: 36px; position: relative;
+    mask-image: linear-gradient(transparent, #000 25%, #000 75%, transparent);
+  }
+  #creditroll { font-family: var(--mono); font-size: 13.5px; line-height: 2.4; color: var(--dim); letter-spacing: .12em; }
+  #creditroll b { color: var(--ink); }
+  .final-line {
+    margin-top: 40px; font-size: clamp(26px, 4vw, 46px); font-weight: 900; line-height: 1.5;
+  }
+  .final-line .hl { color: var(--cyan); }
+  .qr-mini {
+    width: 150px; aspect-ratio: 1; border: 2px dashed var(--faint); border-radius: 14px;
+    margin: 30px auto 0; display: flex; align-items: center; justify-content: center;
+    color: var(--faint); font-family: var(--mono); font-size: 10.5px; letter-spacing: .15em; line-height: 2;
+  }
+
+  @media (max-width: 760px) {
+    .night-stack { grid-template-columns: 1fr; }
+    .boss-grid { grid-template-columns: 1fr; gap: 24px; }
+    .slide { padding: 64px 5vw; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .marquee > div, .caret { animation: none; }
+  }
+</style>
+
+<div class="bg-grid"></div>
+<div class="bg-scan"></div>
+<div id="progress"></div>
+<div id="hud">
+  <span class="brand">游搭 YOUDA</span>
+  <span class="act" id="actlabel">STANDBY</span>
+</div>
+<div id="keyhint"><b>→/空格</b> 前进 · <b>←</b> 后退 · <b>B</b> 黑屏 · <b>F</b> 全屏</div>
+<div id="blackout"></div>
+
+<!-- ═══ S0 待机 ═══ -->
+<section class="slide" data-act="STANDBY">
+  <div class="inner center">
+    <div id="wordmark">游搭</div>
+    <div class="press" id="pressany">PRESS ANY KEY TO START</div>
+  </div>
+  <div class="marquee"><div>本场演示需要 100 名玩家在线 &nbsp;◆&nbsp; 请保持手机电量充足 &nbsp;◆&nbsp; 稍后有全场组队任务 &nbsp;◆&nbsp; 本场演示需要 100 名玩家在线 &nbsp;◆&nbsp; 请保持手机电量充足 &nbsp;◆&nbsp; 稍后有全场组队任务 &nbsp;◆&nbsp;</div></div>
+</section>
+
+<!-- ═══ S1 深夜 ═══ -->
+<section class="slide" data-act="ACT I · 深夜">
+  <div class="inner">
+    <div class="clock" id="clock">22:47:00</div>
+    <div class="eyebrow"><span class="n">01 /</span> 一个所有人都熟悉的夜晚</div>
+    <h1 class="mega" style="font-size:clamp(30px,4.6vw,60px)">下班了。想打两把。<br>然后——</h1>
+    <div class="night-stack">
+      <div class="night-card" data-stagger>
+        <div class="app">游戏大厅</div>
+        <div class="big">我的战队 (3/4)</div>
+        <div class="mut"><span class="status">● 队友A 已离线</span><br><span class="status">● 队友B 已离线</span><br>● 老 6 &nbsp;<span class="read">正在玩其他游戏</span></div>
+      </div>
+      <div class="night-card" data-stagger>
+        <div class="app">微信群 · 开黑吗（32人）</div>
+        <div class="bubble-line"><span class="mini-bubble">今晚有人吗？</span></div>
+        <div class="bubble-line"><span class="mini-bubble">？</span></div>
+        <div class="bubble-line"><span class="mini-bubble">算了</span><span class="read">1 小时前</span></div>
+      </div>
+      <div class="night-card" data-stagger>
+        <div class="app">小红书 · 搜索「三角洲 搭子」</div>
+        <div class="big">「三角洲搭子群 5 群」</div>
+        <div class="mut">加群暗号见评论区 → 翻 200 楼 → 加小助手 → 等通过 → 群满了，加 6 群</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S2 punchline ═══ -->
+<section class="slide" data-act="ACT I · 深夜">
+  <div class="inner center">
+    <h1 class="mega"><span data-beat>游戏是好游戏。</span><br><span data-beat class="warm">就是缺个人。</span></h1>
+  </div>
+</section>
+
+<!-- ═══ S3 loading tips ═══ -->
+<section class="slide" data-act="ACT II · LOADING" data-steps="5">
+  <div class="inner">
+    <div class="eyebrow"><span class="n">02 /</span> Loading&hellip; 顺便看几条数据</div>
+    <div class="loadbar-wrap">
+      <div class="loadbar"><div class="fill" id="loadfill"></div></div>
+      <div class="loadbar-meta"><span>正在连接世界服务器…</span><span id="loadpct">0%</span></div>
+    </div>
+    <div class="tips">
+      <div class="tip" data-step="1"><span class="tag">TIP 01</span><span class="txt">全球玩家 <b>35.78 亿</b>——地球上每 5 个人，就有 2 个在玩游戏<span class="src">Newzoo《2025 全球游戏市场报告》</span></span></div>
+      <div class="tip" data-step="2"><span class="tag">TIP 02</span><span class="txt">中国游戏用户 <b>6.83 亿</b>——差不多每 2 个中国人里就有 1 个玩家<span class="src">《2025 年中国游戏产业报告》· 中国音数协 × 伽马数据</span></span></div>
+      <div class="tip" data-step="3"><span class="txt">玩家平均每周花 <b>8.45 小时</b> 在游戏里；18–29 岁是 <b>10.8 小时</b>——比很多人陪对象的时间都长<span class="src">2025 全球玩家行为统计</span></span><span class="tag" style="order:-1">TIP 03</span></div>
+      <div class="tip key" data-step="4"><span class="tag">TIP 04</span><span class="txt"><b>72%</b> 的玩家会和别人一起玩；<b>52%</b> 开着语音——「一起玩」不是玩法之一，是游戏的默认形态<span class="src">ESA《2025 Essential Facts》</span></span></div>
+      <div class="tip key" data-step="5"><span class="tag">TIP 05</span><span class="txt"><b>40%</b> 的玩家，有「在网上认识」的游戏朋友。陌生人变搭子，每天都在发生——只是至今没有一个像样的入口<span class="src">ESA《2025 Essential Facts》</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S4 reveal ═══ -->
+<section class="slide" data-act="ACT II · LOADING">
+  <div class="inner center">
+    <div class="eyebrow">加载完成 · 100%</div>
+    <h1 class="mega">所以我们做了<br><span class="hl" style="font-size:1.35em">游搭</span></h1>
+    <p class="sub">一句话，找到今晚的搭子。<br><span style="font-family:var(--mono);font-size:.8em;color:var(--faint)">顺便说：我们的第一站——三角洲行动，DAU 已破 5,000 万（腾讯 · 2026.03）</span></p>
+  </div>
+</section>
+
+<!-- ═══ S5 玩法① ═══ -->
+<section class="slide" data-act="ACT III · 玩法">
+  <div class="inner center">
+    <div class="eyebrow"><span class="n">STEP 1 / 3</span> 说人话</div>
+    <h1 class="mega" style="font-size:clamp(28px,3.8vw,52px)">不选标签，不填表格<br>像发微信一样说需求</h1>
+    <div class="phone">
+      <div class="bar">游搭 · 找搭子</div>
+      <div class="inputbox"><span id="typed"></span><span class="caret"></span></div>
+      <div class="chips" id="parsechips">
+        <span class="chip">三角洲行动</span><span class="chip">找女生</span><span class="chip">我打突击 · 她打支援</span><span class="chip">声音好听</span><span class="chip">现在就上号</span>
+      </div>
+      <div class="go">开始匹配 ▸</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S6 玩法② ═══ -->
+<section class="slide" data-act="ACT III · 玩法">
+  <div class="inner center">
+    <div class="eyebrow"><span class="n">STEP 2 / 3</span> 翻牌</div>
+    <div class="matchwrap">
+      <div class="match-card" id="flipcard">
+        <div class="name"><span class="online"></span>奶但不带脑子</div>
+        <div class="chips">
+          <span class="chip">三角洲行动 · 支援</span><span class="chip">白金Ⅱ</span><span class="chip">甜妹音</span><span class="chip">晚间在线</span>
+        </div>
+        <div class="reason">
+          <span class="lab">为什么是 TA</span>
+          你们都主玩三角洲，TA 常驻<b>支援位</b>和你的突击互补；最近 7 天都在 22 点后活跃——现在发消息，大概率秒回。
+        </div>
+      </div>
+    </div>
+    <p class="sub">匹配理由说人话——这是我们的 aha 时刻，也是模型匹配和标签筛选的分水岭。</p>
+  </div>
+</section>
+
+<!-- ═══ S7 玩法③ ═══ -->
+<section class="slide" data-act="ACT III · 玩法">
+  <div class="inner center">
+    <div class="eyebrow"><span class="n">STEP 3 / 3</span> 开黑</div>
+    <h1 class="mega" style="font-size:clamp(28px,3.8vw,52px)">聊上就走，绝不多留</h1>
+    <div class="chatbox">
+      <div class="msg"><div class="b">上号？</div></div>
+      <div class="msg right"><div class="b">冲，我先进</div></div>
+      <div class="msg"><div class="b">进我 KOOK 房：882-441 🎙</div></div>
+    </div>
+    <div class="handoff">
+      <span>游搭</span> <span style="color:var(--cyan)">──▸</span>
+      <span class="pillbox">KOOK</span>
+      <span class="pillbox">游戏内语音</span>
+      <span style="font-size:13px;color:var(--faint)">（语音我们不做，去你们习惯的地方）</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S8 live demo 停靠页 ═══ -->
+<section class="slide" data-act="ACT IV · 实战">
+  <div class="inner center">
+    <div class="swords">⚔️</div>
+    <h1 class="mega">实战演习</h1>
+    <p class="sub">切换到真机 —— 现场匹配一对搭子给大家看<br><span style="font-family:var(--mono);font-size:.82em;color:var(--faint)">[ 演示完毕后按 → 返回 ]</span></p>
+  </div>
+</section>
+
+<!-- ═══ S9 成就 ═══ -->
+<section class="slide" data-act="ACT IV · 实战">
+  <div class="inner center">
+    <div class="ach" id="achbox">
+      <div class="cup">🏆</div>
+      <div>
+        <div class="t1">Achievement Unlocked</div>
+        <div class="t2">成就达成：现场第一对搭子诞生</div>
+        <div class="t3">+100 缘分值 · 该成就全球解锁人数：2</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S10 patch notes ═══ -->
+<section class="slide" data-act="ACT V · 更新预告" data-steps="4">
+  <div class="inner">
+    <div class="eyebrow"><span class="n">03 /</span> Ver 0.2 更新公告（开发中）</div>
+    <h1 class="mega" style="font-size:clamp(28px,3.8vw,50px)">接下来的版本</h1>
+    <div class="patch">
+      <div class="pn" data-step="1"><span class="k add">[新增]</span><span class="v">绑定 Steam / 游戏账号——库存、时长、KDA 自动变成可信标签<small>吹牛没用了，战绩替你说话</small></span></div>
+      <div class="pn" data-step="2"><span class="k add">[新增]</span><span class="v">真人认证 + 举报拉黑<small>让「找搭子」这件事安全、干净</small></span></div>
+      <div class="pn" data-step="3"><span class="k pro">[PRO]</span><span class="v">轻订阅 ~¥10/月：性别·声音筛选 / 无限次匹配<small>不做陪玩、不做交易——我们只做匹配</small></span></div>
+      <div class="pn" data-step="4"><span class="k pro">[远期]</span><span class="v">越多人用，匹配越准<small>聊天与战绩沉淀出别人拿不到的搭子画像——这是我们的护城河</small></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S11 BOSS 战 ═══ -->
+<section class="slide" data-act="FINAL · BOSS 战">
+  <div class="radar" id="radar"></div>
+  <div class="inner">
+    <div class="eyebrow center" style="color:var(--red)"><span class="n">FINAL /</span> BOSS 战：100 人现场组队</div>
+    <h1 class="mega center" style="font-size:clamp(26px,3.6vw,48px)">别鼓掌，扫码。<br>现在就找到你今晚的搭子。</h1>
+    <div class="boss-grid">
+      <div class="qr-slot" id="qrslot">
+        <img id="qrimg" src="qr-app.png" alt="" onerror="this.remove()">
+        <span id="qrph">扫码进入游搭<br>QR 占位 · 部署后替换<br>pitch/qr-app.png</span>
+      </div>
+      <div class="statbig">
+        <div class="stat"><div class="lab">当前在线玩家</div><div class="num" id="n-online">0</div></div>
+        <div class="stat"><div class="lab">已匹配搭子</div><div class="num warm" id="n-matched">0 <span style="font-size:.4em">对</span></div></div>
+        <div id="ticker"><div id="tickerroll"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ S12 ending ═══ -->
+<section class="slide" data-act="ENDING">
+  <div class="inner center">
+    <div class="eyebrow">内测公会 · 招募中</div>
+    <div class="qr-mini">入群二维码占位<br>pitch/qr-group.png</div>
+    <div class="credits"><div id="creditroll">
+      <b>游搭 YOUDA</b> · DEMO BUILD 0.1<br>
+      —— 制作组 ——<br>
+      主策划 · ______<br>
+      主程序 · ______<br>
+      模型调教 · ______<br>
+      氛围组 · ______<br>
+      特别鸣谢 · 今晚现场的 100 位玩家<br>
+      &nbsp;<br>
+      Powered by DeepSeek · Supabase · Vercel · GSAP
+    </div></div>
+    <div class="final-line">今晚 22:47，<br>你<span class="hl">不再一个人</span>排队。</div>
+  </div>
+</section>
+
+<script src="./gsap.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var progress = document.getElementById("progress");
+  var actlabel = document.getElementById("actlabel");
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var cur = -1, stepAt = 0, animating = false;
+
+  /* ── per-slide enter animations ── */
+  function enter(i, dir) {
+    var s = slides[i];
+    var tl = gsap.timeline();
+    if (reduced) { gsap.set(s.querySelectorAll("[data-stagger],[data-beat],.msg,.handoff,.ach,.phone,.match-card"), { clearProps: "all", visibility: "visible" }); return; }
+
+    var inner = s.querySelector(".inner");
+    if (inner) tl.fromTo(inner, { autoAlpha: 0, y: dir >= 0 ? 34 : -34 }, { autoAlpha: 1, y: 0, duration: .55, ease: "power3.out" }, 0);
+
+    // S0 standby
+    var wm = s.querySelector("#wordmark");
+    if (wm) {
+      tl.fromTo(wm, { scale: .92, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .9, ease: "power4.out" }, 0);
+      gsap.to(wm, { filter: "drop-shadow(0 0 60px rgba(54,226,200,.55))", duration: 1.6, yoyo: true, repeat: -1, ease: "sine.inOut" });
+      gsap.to("#pressany", { autoAlpha: .25, duration: .9, yoyo: true, repeat: -1, ease: "steps(1)" });
+    }
+    // night cards
+    var cards = s.querySelectorAll("[data-stagger]");
+    if (cards.length) tl.from(cards, { y: 46, autoAlpha: 0, rotate: function(idx){ return idx % 2 ? 1.2 : -1.2; }, duration: .55, stagger: .16, ease: "back.out(1.5)" }, .15);
+    // punchline beats
+    var beats = s.querySelectorAll("[data-beat]");
+    if (beats.length) tl.from(beats, { autoAlpha: 0, y: 26, duration: .5, stagger: .8, ease: "power3.out" }, .1);
+    // typing slide
+    var typed = s.querySelector("#typed");
+    if (typed) {
+      var full = "想找个女生一起玩三角洲，我打突击她打支援，最好声音好听点，现在就能上号";
+      var obj = { n: 0 };
+      typed.textContent = "";
+      gsap.set(s.querySelectorAll(".chip"), { visibility: "hidden" });
+      tl.to(obj, { n: full.length, duration: 2.6, ease: "none", delay: .3,
+        onUpdate: function () { typed.textContent = full.slice(0, Math.round(obj.n)); } });
+      tl.fromTo(s.querySelectorAll("#parsechips .chip"),
+        { visibility: "hidden", scale: .5, autoAlpha: 0 },
+        { visibility: "visible", scale: 1, autoAlpha: 1, duration: .4, stagger: .1, ease: "back.out(1.8)" });
+    }
+    // flip card
+    var flip = s.querySelector("#flipcard");
+    if (flip) {
+      tl.fromTo(flip, { rotationY: -92, autoAlpha: 0, transformPerspective: 900 },
+        { rotationY: 0, autoAlpha: 1, duration: .7, ease: "power4.out" }, .15);
+      tl.from(s.querySelector(".reason"), { autoAlpha: 0, x: -18, duration: .45, ease: "power2.out" }, "-=.15");
+    }
+    // chat
+    var msgs = s.querySelectorAll(".msg");
+    if (msgs.length) {
+      tl.fromTo(msgs, { visibility: "hidden", y: 18, scale: .93, autoAlpha: 0 },
+        { visibility: "visible", y: 0, scale: 1, autoAlpha: 1, duration: .4, stagger: .5, ease: "back.out(1.6)" }, .2);
+      tl.fromTo(s.querySelector(".handoff"), { visibility: "hidden", autoAlpha: 0, y: 14 },
+        { visibility: "visible", autoAlpha: 1, y: 0, duration: .5 }, "+=.2");
+    }
+    // achievement
+    var ach = s.querySelector("#achbox");
+    if (ach) {
+      tl.fromTo(ach, { scale: .6, autoAlpha: 0, rotate: -3 }, { scale: 1, autoAlpha: 1, rotate: 0, duration: .55, ease: "back.out(2.2)" }, .1);
+      tl.fromTo(ach, { boxShadow: "0 0 0px rgba(255,180,84,0)" }, { boxShadow: "0 0 80px rgba(255,180,84,.35)", duration: .5 }, "-=.2");
+    }
+    // boss slide
+    if (s.querySelector("#n-online")) { startRadar(s); }
+    // credits
+    var roll = s.querySelector("#creditroll");
+    if (roll) {
+      gsap.fromTo(roll, { y: 150 }, { y: -roll.scrollHeight, duration: 26, ease: "none", repeat: -1 });
+      tl.from(s.querySelector(".final-line"), { autoAlpha: 0, y: 24, duration: .8, delay: .4 }, .2);
+    }
+  }
+
+  /* ── stepped slides (loading tips / patch notes) ── */
+  function revealStep(s, k) {
+    var el = s.querySelector('[data-step="' + k + '"]');
+    if (!el) return;
+    gsap.fromTo(el, { visibility: "hidden", autoAlpha: 0, x: -26 },
+      { visibility: "visible", autoAlpha: 1, x: 0, duration: .45, ease: "power3.out" });
+    var total = +s.getAttribute("data-steps");
+    var fill = s.querySelector("#loadfill");
+    if (fill) {
+      var pct = Math.round(k / total * 100);
+      gsap.to(fill, { width: pct + "%", duration: .5, ease: "power2.inOut" });
+      var pctEl = s.querySelector("#loadpct");
+      var o = { v: 0 };
+      if (pctEl) { o.v = parseInt(pctEl.textContent) || 0;
+        gsap.to(o, { v: pct, duration: .5, onUpdate: function(){ pctEl.textContent = Math.round(o.v) + "%"; } }); }
+    }
+  }
+
+  /* ── navigation ── */
+  function goTo(i, dir) {
+    if (i < 0 || i >= slides.length || i === cur) return;
+    if (cur >= 0) slides[cur].classList.remove("active");
+    cur = i; stepAt = 0;
+    var s = slides[cur];
+    s.classList.add("active");
+    actlabel.textContent = s.getAttribute("data-act") || "";
+    gsap.to(progress, { width: (cur / (slides.length - 1)) * 100 + "%", duration: .4 });
+    location.hash = "#" + cur;
+    enter(cur, dir);
+  }
+  function next() {
+    var s = slides[cur];
+    var steps = +(s.getAttribute("data-steps") || 0);
+    if (steps && stepAt < steps) { stepAt++; revealStep(s, stepAt); return; }
+    goTo(cur + 1, 1);
+  }
+  function prev() { goTo(cur - 1, -1); }
+
+  /* ── clock (slide 1) ── */
+  (function tickClock() {
+    var el = document.getElementById("clock");
+    var sec = 0;
+    setInterval(function () {
+      sec = (sec + 1) % 60;
+      if (el) el.textContent = "22:47:" + (sec < 10 ? "0" : "") + sec;
+    }, 1000);
+  })();
+
+  /* ── BOSS live counters ──
+     真实接入：产品上线后在此处订阅 Supabase Realtime，
+     window.YOUDA_LIVE = { online, matched, feed[] } 并调用 renderLive()。
+     现在默认为「演习模式」：按 L 启动/暂停模拟增长。 */
+  var live = { online: 0, matched: 0, sim: null };
+  var names = ["凌晨四点的枪声","奶但不带脑子","Steam仓鼠","野区养猪户","下班就上号","不开麦但能赢","蹲坑战神","雾锁王国导游","白给型选手","支援位天使"];
+  function renderLive() {
+    var o = document.getElementById("n-online"), m = document.getElementById("n-matched");
+    if (o) o.textContent = live.online;
+    if (m) m.innerHTML = live.matched + ' <span style="font-size:.4em">对</span>';
+  }
+  function pushFeed() {
+    var roll = document.getElementById("tickerroll");
+    if (!roll) return;
+    var a = names[Math.floor(Math.random() * names.length)];
+    var b = names[Math.floor(Math.random() * names.length)];
+    if (a === b) return;
+    var div = document.createElement("div");
+    div.innerHTML = "⚡ <b>" + a + "</b> × <b>" + b + "</b> 匹配成功 —— 已开聊";
+    roll.prepend(div);
+    gsap.from(div, { autoAlpha: 0, y: -14, duration: .4 });
+    while (roll.children.length > 4) roll.removeChild(roll.lastChild);
+  }
+  function toggleSim() {
+    if (live.sim) { clearInterval(live.sim); live.sim = null; return; }
+    live.sim = setInterval(function () {
+      if (live.online < 100) live.online += Math.floor(Math.random() * 4) + 1;
+      if (live.online > 100) live.online = 100;
+      if (Math.random() < .55 && live.matched < Math.floor(live.online / 2)) {
+        live.matched += 1; pushFeed();
+      }
+      renderLive();
+    }, 900);
+  }
+  function resetLive() {
+    live.online = 0; live.matched = 0; renderLive();
+    var roll = document.getElementById("tickerroll");
+    if (roll) roll.innerHTML = "";
+  }
+  function startRadar(s) {
+    var r = s.querySelector("#radar");
+    if (r && !r._spin) { r._spin = true; gsap.to(r, { rotation: 360, duration: 6, repeat: -1, ease: "none" }); }
+    renderLive();
+  }
+
+  /* ── keys ── */
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") { e.preventDefault(); next(); }
+    else if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); prev(); }
+    else if (e.key === "b" || e.key === "B") document.getElementById("blackout").classList.toggle("on");
+    else if (e.key === "l" || e.key === "L") toggleSim();
+    else if (e.key === "r" || e.key === "R") resetLive();
+    else if (e.key === "f" || e.key === "F") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    else if (cur === 0) next(); // PRESS ANY KEY
+  });
+  document.addEventListener("click", function () { next(); });
+
+  var h = parseInt((location.hash || "").slice(1), 10);
+  goTo(isNaN(h) ? 0 : Math.min(h, slides.length - 1), 1);
+})();
+</script>
+</body>
+</html>
